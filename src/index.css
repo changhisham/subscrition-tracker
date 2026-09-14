@@ -115,6 +115,23 @@ input:focus, textarea:focus, select:focus { border-color: #98a2b3; box-shadow: 0
 .alert { margin: 0 20px 20px; padding: 10px 12px; border-radius: 8px; background: #f8fafc; border: 1px solid #eaecf0; display: flex; align-items: center; gap: 7px; font-size: 12px; color: #475467; }
 .alert.error { margin: 0; color: #b42318; background: #fef3f2; border-color: #fecdca; }
 
+.member-card { padding: 13px 0; border-bottom: 1px solid #f2f4f7; }
+.member-card:last-child { border-bottom: 0; }
+.payment-row.no-border { border-bottom: 0; padding-bottom: 8px; }
+.member-subs { padding-left: 45px; display: grid; gap: 6px; }
+.sub-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; background: #f8fafc; border: 1px solid #eaecf0; border-radius: 8px; padding: 8px 10px; font-size: 11px; }
+.sub-row.edit-row { background: #fff; }
+.sub-row.empty-sub { color: #98a2b3; background: transparent; border-style: dashed; }
+.sub-name { font-weight: 700; color: #101828; flex: 1 1 120px; }
+.sub-meta { color: #667085; }
+.sub-row .action-row { margin-left: auto; }
+.sub-row input, .sub-row select { width: auto; padding: 6px 8px; font-size: 11px; }
+.sub-add-form { display: flex; gap: 6px; flex-wrap: wrap; padding-top: 2px; }
+.sub-add-form select, .sub-add-form input { flex: 1 1 120px; padding: 7px 8px; font-size: 11px; border: 1px solid #d0d5dd; border-radius: 7px; background: #fff; color: #101828; }
+.sub-add-form button { flex: 0 0 auto; }
+
+.edit-status-select, .edit-date-input { border: 1px solid #d0d5dd; border-radius: 7px; padding: 6px 8px; font-size: 11px; background: #fff; color: #101828; }
+
 .table-wrap { overflow-x: auto; }
 table { width: 100%; border-collapse: collapse; min-width: 850px; }
 th, td { padding: 12px 16px; border-bottom: 1px solid #eaecf0; text-align: left; font-size: 12px; }

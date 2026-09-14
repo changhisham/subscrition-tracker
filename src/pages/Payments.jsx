@@ -1,14 +1,18 @@
 import { useEffect, useState } from 'react'
-import { CheckCircle2, Upload } from 'lucide-react'
+import { CheckCircle2, Pencil, Upload, X } from 'lucide-react'
 import { listPayments, updatePayment, uploadReceipt } from '../services/payments'
 import StatusBadge from '../components/ui/StatusBadge'
 import { money } from '../utils/currency'
-import { formatDate, monthInputValue } from '../utils/dates'
+import { formatDate, monthInputValue, todayIso } from '../utils/dates'
+
+const statusOptions = ['PENDING', 'PAID', 'OVERDUE', 'WAIVED']
 
 export default function Payments() {
   const [month, setMonth] = useState(monthInputValue())
   const [payments, setPayments] = useState([])
   const [busy, setBusy] = useState('')
+  const [editing, setEditing] = useState(null)
+  const [editForm, setEditForm] = useState({ status: 'PENDING', payment_date: '' })
 
   async function load() {
     const [year, m] = month.split('-').map(Number)
@@ -31,6 +35,23 @@ export default function Payments() {
     await load(); setBusy('')
   }
 
+  function startEdit(p) {
+    setEditing(p.id)
+    setEditForm({ status: p.status, payment_date: p.payment_date || '' })
+  }
+
+  function cancelEdit() { setEditing(null) }
+
+  async function saveEdit(id) {
+    setBusy(id)
+    const payload = {
+      status: editForm.status,
+      payment_date: editForm.status === 'PAID' ? (editForm.payment_date || todayIso()) : null,
+    }
+    await updatePayment(id, payload)
+    setEditing(null); await load(); setBusy('')
+  }
+
   return (
     <>
       <div className="page-heading-row"><div><h2>Payments</h2><p>Track what is pending, paid, overdue, or waived.</p></div><input className="month-picker" type="month" value={month} onChange={e=>setMonth(e.target.value)}/></div>
@@ -45,11 +66,28 @@ export default function Payments() {
                 <td>{formatDate(p.due_date)}</td>
                 <td>{money(p.amount_due)}</td>
                 <td>{money(p.amount_paid)}</td>
-                <td><StatusBadge status={p.status}/></td>
+                <td>
+                  {editing === p.id ? (
+                    <select className="edit-status-select" value={editForm.status} onChange={e => setEditForm({...editForm, status: e.target.value})}>
+                      {statusOptions.map(s => <option key={s} value={s}>{s}</option>)}
+                    </select>
+                  ) : <StatusBadge status={p.status}/>}
+                </td>
                 <td><div className="action-row">
-                  {p.status !== 'PAID' && <button className="btn small success-btn" disabled={busy===p.id} onClick={()=>status(p.id,'PAID')}><CheckCircle2 size={14}/>Paid</button>}
-                  {p.status !== 'WAIVED' && <button className="btn small ghost" disabled={busy===p.id} onClick={()=>status(p.id,'WAIVED')}>Waive</button>}
-                  <label className="btn small ghost upload-btn"><Upload size={14}/>Receipt<input type="file" accept="image/*,.pdf" onChange={e=>receipt(p.id,e.target.files?.[0])}/></label>
+                  {editing === p.id ? (
+                    <>
+                      {editForm.status === 'PAID' && <input type="date" className="edit-date-input" value={editForm.payment_date} onChange={e => setEditForm({...editForm, payment_date: e.target.value})}/>}
+                      <button className="btn small primary" disabled={busy===p.id} onClick={()=>saveEdit(p.id)}><CheckCircle2 size={14}/>Save</button>
+                      <button className="btn small ghost" disabled={busy===p.id} onClick={cancelEdit}><X size={14}/>Cancel</button>
+                    </>
+                  ) : (
+                    <>
+                      {p.status !== 'PAID' && <button className="btn small success-btn" disabled={busy===p.id} onClick={()=>status(p.id,'PAID')}><CheckCircle2 size={14}/>Paid</button>}
+                      {p.status !== 'WAIVED' && <button className="btn small ghost" disabled={busy===p.id} onClick={()=>status(p.id,'WAIVED')}>Waive</button>}
+                      <label className="btn small ghost upload-btn"><Upload size={14}/>Receipt<input type="file" accept="image/*,.pdf" onChange={e=>receipt(p.id,e.target.files?.[0])}/></label>
+                      <button className="icon-btn" disabled={busy===p.id} onClick={()=>startEdit(p)}><Pencil size={14}/></button>
+                    </>
+                  )}
                 </div></td>
               </tr>)}
             </tbody>

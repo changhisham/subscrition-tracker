@@ -5,20 +5,33 @@ import StatusBadge from '../components/ui/StatusBadge'
 import { listPayments } from '../services/payments'
 import { listSubscriptions } from '../services/subscriptions'
 import { money } from '../utils/currency'
-import { formatDate, monthInputValue, formatMonth } from '../utils/dates'
+import { monthInputValue, formatMonth } from '../utils/dates'
+
+const scopes = ['Monthly', 'Yearly']
+const statusOrder = ['OVERDUE', 'PENDING', 'PAID', 'WAIVED']
+const currentYear = new Date().getFullYear()
+const years = Array.from({ length: 8 }, (_, i) => currentYear - 5 + i)
 
 export default function Dashboard() {
+  const [scope, setScope] = useState('Monthly')
   const [month, setMonth] = useState(monthInputValue())
+  const [year, setYear] = useState(currentYear)
   const [payments, setPayments] = useState([])
   const [subscriptions, setSubscriptions] = useState([])
   const [loading, setLoading] = useState(true)
 
   async function load() {
     setLoading(true)
-    const [year, m] = month.split('-').map(Number)
-    const from = `${month}-01`
-    const last = new Date(year, m, 0).getDate()
-    const to = `${month}-${String(last).padStart(2, '0')}`
+    let from, to
+    if (scope === 'Yearly') {
+      from = `${year}-01-01`
+      to = `${year}-12-31`
+    } else {
+      const [y, m] = month.split('-').map(Number)
+      from = `${month}-01`
+      const last = new Date(y, m, 0).getDate()
+      to = `${month}-${String(last).padStart(2, '0')}`
+    }
     const [p, s] = await Promise.all([
       listPayments({ from, to }),
       listSubscriptions(),
@@ -28,7 +41,7 @@ export default function Dashboard() {
     setLoading(false)
   }
 
-  useEffect(() => { load() }, [month])
+  useEffect(() => { load() }, [scope, month, year])
 
   const stats = useMemo(() => ({
     total: payments.reduce((a, p) => a + Number(p.amount_due || 0), 0),
@@ -39,11 +52,48 @@ export default function Dashboard() {
 
   const active = subscriptions.filter(s => s.status === 'ACTIVE')
 
+  const friendsSummary = useMemo(() => {
+    const map = new Map()
+    payments.forEach(p => {
+      const key = p.member_id
+      if (!map.has(key)) map.set(key, { member: p.member, due: 0, paid: 0, outstanding: 0, overdue: 0, count: 0 })
+      const entry = map.get(key)
+      entry.due += Number(p.amount_due || 0)
+      entry.paid += Number(p.amount_paid || 0)
+      entry.count += 1
+      if (!['PAID', 'WAIVED'].includes(p.status)) entry.outstanding += Math.max(0, Number(p.amount_due || 0) - Number(p.amount_paid || 0))
+      if (p.status === 'OVERDUE') entry.overdue += 1
+    })
+    return Array.from(map.values()).sort((a, b) => (a.member?.nickname || '').localeCompare(b.member?.nickname || ''))
+  }, [payments])
+
+  const statusSummary = useMemo(() => {
+    const map = Object.fromEntries(statusOrder.map(s => [s, { count: 0, due: 0, paid: 0 }]))
+    payments.forEach(p => {
+      if (!map[p.status]) map[p.status] = { count: 0, due: 0, paid: 0 }
+      map[p.status].count += 1
+      map[p.status].due += Number(p.amount_due || 0)
+      map[p.status].paid += Number(p.amount_paid || 0)
+    })
+    return statusOrder.map(s => ({ status: s, ...map[s] }))
+  }, [payments])
+
+  const heading = scope === 'Yearly' ? `Year ${year}` : formatMonth(month)
+  const periodWord = scope === 'Yearly' ? 'year' : 'month'
+
   return (
     <>
       <div className="page-heading-row">
-        <div><h2>{formatMonth(month)}</h2><p>Here is what needs your attention this month.</p></div>
-        <input className="month-picker" type="month" value={month} onChange={e => setMonth(e.target.value)} />
+        <div><h2>{heading}</h2><p>Here is what needs your attention this {periodWord}.</p></div>
+        {scope === 'Yearly'
+          ? <select className="month-picker" value={year} onChange={e => setYear(Number(e.target.value))}>
+              {years.map(y => <option key={y} value={y}>{y}</option>)}
+            </select>
+          : <input className="month-picker" type="month" value={month} onChange={e => setMonth(e.target.value)} />}
+      </div>
+
+      <div className="report-tabs">
+        {scopes.map(s => <button key={s} className={scope === s ? 'active' : ''} onClick={() => setScope(s)}>{s}</button>)}
       </div>
 
       <div className="stats-grid">
@@ -55,24 +105,7 @@ export default function Dashboard() {
 
       <div className="content-grid two">
         <section className="panel">
-          <div className="panel-header"><div><h3>Outstanding payments</h3><p>People you may want to contact privately.</p></div></div>
-          {loading ? <div className="empty">Loading…</div> : payments.filter(p => !['PAID', 'WAIVED'].includes(p.status)).length === 0 ? (
-            <div className="empty success-empty"><CheckCircle2 size={28}/><strong>All caught up</strong><span>No outstanding payments for this period.</span></div>
-          ) : (
-            <div className="payment-list">
-              {payments.filter(p => !['PAID', 'WAIVED'].includes(p.status)).map(p => (
-                <div className="payment-row" key={p.id}>
-                  <div className="avatar soft">{p.member?.nickname?.slice(0,1).toUpperCase() || '?'}</div>
-                  <div className="row-main"><strong>{p.member?.nickname}</strong><span>{p.subscription?.name} · Due {formatDate(p.due_date)}</span></div>
-                  <div className="row-end"><strong>{money(Number(p.amount_due) - Number(p.amount_paid || 0))}</strong><StatusBadge status={p.status}/></div>
-                </div>
-              ))}
-            </div>
-          )}
-        </section>
-
-        <section className="panel">
-          <div className="panel-header"><div><h3>Active subscriptions</h3><p>{active.length} active service{active.length === 1 ? '' : 's'}.</p></div></div>
+          <div className="panel-header"><div><h3>Subscriptions</h3><p>{active.length} active service{active.length === 1 ? '' : 's'}.</p></div></div>
           {active.length === 0 ? <div className="empty">No subscriptions yet.</div> : (
             <div className="payment-list">
               {active.map(s => {
@@ -86,7 +119,41 @@ export default function Dashboard() {
             </div>
           )}
         </section>
+
+        <section className="panel">
+          <div className="panel-header"><div><h3>Friends</h3><p>Payment activity for this {periodWord}.</p></div></div>
+          {loading ? <div className="empty">Loading…</div> : !friendsSummary.length ? (
+            <div className="empty">No payment records for this period.</div>
+          ) : (
+            <div className="payment-list">
+              {friendsSummary.map(f => (
+                <div className="payment-row" key={f.member?.id || f.member?.nickname}>
+                  <div className="avatar soft">{f.member?.nickname?.slice(0,1).toUpperCase() || '?'}</div>
+                  <div className="row-main"><strong>{f.member?.nickname}</strong><span>{f.count} payment{f.count === 1 ? '' : 's'} · {f.overdue} overdue</span></div>
+                  <div className="row-end"><strong>{money(f.paid)} / {money(f.due)}</strong><span className="muted">{f.outstanding > 0 ? `${money(f.outstanding)} owing` : 'Settled'}</span></div>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
       </div>
+
+      <section className="panel">
+        <div className="panel-header"><div><h3>Payments status</h3><p>Breakdown by status for this {periodWord}.</p></div></div>
+        {loading ? <div className="empty">Loading…</div> : !payments.length ? (
+          <div className="empty">No payment records for this period.</div>
+        ) : (
+          <div className="payment-list">
+            {statusSummary.filter(s => s.count > 0).map(s => (
+              <div className="payment-row" key={s.status}>
+                <StatusBadge status={s.status}/>
+                <div className="row-main"><strong>{s.count} payment{s.count === 1 ? '' : 's'}</strong></div>
+                <div className="row-end"><strong>{money(s.due)}</strong><span className="muted">{money(s.paid)} received</span></div>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
     </>
   )
 }

@@ -37,6 +37,15 @@ export async function listMembers() {
   return data || []
 }
 
+export async function listMembersWithSubscriptions() {
+  const { data, error } = await supabase
+    .from('members')
+    .select('*, subscription_members(*, subscription:subscriptions(id, name, status))')
+    .order('nickname')
+  if (error) throw error
+  return data || []
+}
+
 export async function createMember(payload) {
   const { data, error } = await supabase.from('members').insert(payload).select().single()
   if (error) throw error
