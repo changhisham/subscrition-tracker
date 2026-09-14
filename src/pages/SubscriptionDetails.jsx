@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { ArrowLeft, CalendarPlus, Check, Trash2, UserPlus } from 'lucide-react'
+import { AlertTriangle, ArrowLeft, CalendarPlus, Check, Trash2, UserPlus } from 'lucide-react'
 import { getSubscription, listMembers, removeSubscriptionMember, saveSubscriptionMember, updateSubscription } from '../services/subscriptions'
 import { generateBillingPeriod } from '../services/billing'
 import { money } from '../utils/currency'
-import { monthInputValue } from '../utils/dates'
+import { formatDate, monthInputValue, todayIso } from '../utils/dates'
 
 export default function SubscriptionDetails() {
   const { id } = useParams()
@@ -12,8 +12,10 @@ export default function SubscriptionDetails() {
   const [members, setMembers] = useState([])
   const [memberId, setMemberId] = useState('')
   const [amount, setAmount] = useState('')
+  const [joinDate, setJoinDate] = useState(todayIso())
   const [period, setPeriod] = useState(monthInputValue())
   const [message, setMessage] = useState('')
+  const [messageType, setMessageType] = useState('ok')
 
   async function load() {
     const [s, m] = await Promise.all([getSubscription(id), listMembers()])
@@ -25,8 +27,8 @@ export default function SubscriptionDetails() {
 
   async function addMember(e) {
     e.preventDefault()
-    await saveSubscriptionMember({ subscription_id: id, member_id: memberId, monthly_amount: Number(amount), joined_date: `${period}-01`, notes: '' })
-    setMemberId(''); setAmount(''); await load()
+    await saveSubscriptionMember({ subscription_id: id, member_id: memberId, monthly_amount: Number(amount), joined_date: joinDate, notes: '' })
+    setMemberId(''); setAmount(''); setJoinDate(todayIso()); await load()
   }
 
   async function remove(id2) { await removeSubscriptionMember(id2); await load() }
@@ -35,8 +37,15 @@ export default function SubscriptionDetails() {
     setMessage('')
     try {
       const result = await generateBillingPeriod(id, `${period}-01`)
-      setMessage(`Billing period generated. ${result?.created_count ?? 'Payment'} record(s) created.`)
-    } catch (e) { setMessage(e.message) }
+      const created = result?.created_count ?? 0
+      if (created > 0) {
+        setMessageType('ok')
+        setMessage(`Billing period generated. ${created} payment record(s) created.`)
+      } else {
+        setMessageType('warn')
+        setMessage("Billing period generated, but no payment records were created. This means no friend's Joined date (in Members & pricing, or the Friends tab) is on or before this month — or payments for this period already exist.")
+      }
+    } catch (e) { setMessageType('warn'); setMessage(e.message) }
   }
 
   if (!subscription) return <div className="empty">Loading…</div>
@@ -61,13 +70,14 @@ export default function SubscriptionDetails() {
           <div className="payment-list">
             {subscription.subscription_members?.map(sm => <div className="payment-row" key={sm.id}>
               <div className="avatar soft">{sm.member?.nickname?.slice(0,1).toUpperCase()}</div>
-              <div className="row-main"><strong>{sm.member?.nickname}</strong><span>Joined {sm.joined_date || '—'}</span></div>
+              <div className="row-main"><strong>{sm.member?.nickname}</strong><span>Joined {formatDate(sm.joined_date)}</span></div>
               <div className="row-end"><strong>{money(sm.monthly_amount)}</strong><button className="icon-btn danger-icon" onClick={()=>remove(sm.id)}><Trash2 size={15}/></button></div>
             </div>)}
             {!subscription.subscription_members?.length && <div className="empty">No members added.</div>}
           </div>
           <form className="inline-form" onSubmit={addMember}>
             <select value={memberId} onChange={e=>setMemberId(e.target.value)} required><option value="">Select friend</option>{members.filter(m=>!subscription.subscription_members?.some(x=>x.member_id===m.id)).map(m=><option key={m.id} value={m.id}>{m.nickname}</option>)}</select>
+            <input type="date" value={joinDate} onChange={e=>setJoinDate(e.target.value)} required title="Joined date"/>
             <input type="number" step="0.01" min="0" placeholder="MYR amount" value={amount} onChange={e=>setAmount(e.target.value)} required/>
             <button className="btn primary"><UserPlus size={16}/>Add</button>
           </form>
@@ -78,9 +88,14 @@ export default function SubscriptionDetails() {
           <div className="form-stack">
             <label>Billing month<input type="month" value={period} onChange={e=>setPeriod(e.target.value)}/></label>
             <button className="btn primary" onClick={generate}><CalendarPlus size={16}/>Generate payments</button>
-            {message && <div className="alert"><Check size={16}/>{message}</div>}
+            {message && <div className={`alert ${messageType === 'warn' ? 'error' : ''}`}>{messageType === 'warn' ? <AlertTriangle size={16}/> : <Check size={16}/>}{message}</div>}
           </div>
-          <div className="callout"><strong>Historical amounts are protected.</strong><span>Changing a member's amount later will not modify payment records that have already been generated.</span></div>
+          <div className="callout">
+            <strong>Historical amounts are protected.</strong>
+            <span>Changing a member's amount later will not modify payment records that have already been generated.</span>
+            <strong>Only members who had already joined get billed.</strong>
+            <span>A friend is only included in a billing period if their Joined date is on or before that month (and, if they left, before their Left date).</span>
+          </div>
         </section>
       </div>
     </>
