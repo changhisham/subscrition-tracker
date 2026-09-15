@@ -9,7 +9,7 @@ import { monthInputValue, formatMonth } from '../utils/dates'
 
 const scopes = ['Monthly', 'Yearly']
 const statusOrder = ['OVERDUE', 'PENDING', 'PAID', 'WAIVED']
-const monthLetters = ['J', 'F', 'M', 'A', 'M', 'J', 'J', 'A', 'S', 'O', 'N', 'D']
+const monthLetters = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 const currentYear = new Date().getFullYear()
 const years = Array.from({ length: 8 }, (_, i) => currentYear - 5 + i)
 

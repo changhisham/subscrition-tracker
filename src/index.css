@@ -133,7 +133,7 @@ input:focus, textarea:focus, select:focus { border-color: #98a2b3; box-shadow: 0
 .edit-status-select, .edit-date-input { border: 1px solid #d0d5dd; border-radius: 7px; padding: 6px 8px; font-size: 11px; background: #fff; color: #101828; }
 
 .grid-panels { display: grid; gap: 18px; }
-.grid-table { min-width: 620px; }
+.grid-table { min-width: 780px; }
 .grid-table th, .grid-table td { text-align: center; padding: 10px 6px; }
 .grid-table th:first-child, .grid-table td:first-child { text-align: left; padding-left: 16px; }
 .grid-table td:first-child { font-weight: 700; color: #101828; }
