@@ -134,6 +134,14 @@ export default function Dashboard() {
   const heading = scope === 'Yearly' ? `Year ${year}` : formatMonth(month)
   const periodWord = scope === 'Yearly' ? 'year' : 'month'
 
+  const [subTab, setSubTab] = useState(null)
+  useEffect(() => {
+    if (scope !== 'Yearly') return
+    const exists = yearlyGrids.some(g => (g.subscription?.id ?? g.subscription?.name) === subTab)
+    if (!exists) setSubTab(yearlyGrids[0] ? (yearlyGrids[0].subscription?.id ?? yearlyGrids[0].subscription?.name) : null)
+  }, [yearlyGrids, scope])
+  const activeGrid = yearlyGrids.find(g => (g.subscription?.id ?? g.subscription?.name) === subTab)
+
   return (
     <>
       <div className="page-heading-row">
@@ -157,43 +165,51 @@ export default function Dashboard() {
       </div>
 
       {scope === 'Yearly' ? (
-        <div className="grid-panels">
-          {loading ? (
-            <section className="panel"><div className="empty">Loading…</div></section>
-          ) : !yearlyGrids.length ? (
-            <section className="panel"><div className="empty">No payment records for {year}.</div></section>
-          ) : yearlyGrids.map(g => (
-            <section className="panel" key={g.subscription?.id || g.subscription?.name}>
-              <div className="panel-header"><div><h3>{g.subscription?.name || 'Unknown subscription'}</h3><p>{g.subscription?.provider || '—'}</p></div></div>
-              <div className="table-wrap">
-                <table className="grid-table">
-                  <thead>
-                    <tr><th></th>{monthLetters.map((l, i) => <th key={i}>{l}</th>)}<th>Total</th></tr>
-                  </thead>
-                  <tbody>
-                    <tr className="grid-all-row">
-                      <td>All</td>
-                      {g.allCells.map((s, i) => <GridCell key={i} status={s} />)}
-                      <td className="grid-total">{money(g.allTotal)}</td>
-                    </tr>
-                    {g.rows.map(r => (
-                      <tr key={r.member?.id || r.member?.nickname}>
-                        <td>{r.member?.nickname}</td>
-                        {r.cells.map((s, i) => <GridCell key={i} status={s} />)}
-                        <td className="grid-total">{money(r.total)}</td>
+        loading ? (
+          <section className="panel"><div className="empty">Loading…</div></section>
+        ) : !yearlyGrids.length ? (
+          <section className="panel"><div className="empty">No payment records for {year}.</div></section>
+        ) : (
+          <>
+            <div className="report-tabs sub-tabs">
+              {yearlyGrids.map(g => {
+                const key = g.subscription?.id ?? g.subscription?.name
+                return <button key={key} className={subTab === key ? 'active' : ''} onClick={() => setSubTab(key)}>{g.subscription?.name || 'Unknown'}</button>
+              })}
+            </div>
+            {activeGrid && (
+              <section className="panel">
+                <div className="panel-header"><div><h3>{activeGrid.subscription?.name || 'Unknown subscription'}</h3><p>{activeGrid.subscription?.provider || '—'}</p></div></div>
+                <div className="table-wrap">
+                  <table className="grid-table">
+                    <thead>
+                      <tr><th></th>{monthLetters.map((l, i) => <th key={i}>{l}</th>)}<th>Total</th></tr>
+                    </thead>
+                    <tbody>
+                      <tr className="grid-all-row">
+                        <td>All</td>
+                        {activeGrid.allCells.map((s, i) => <GridCell key={i} status={s} />)}
+                        <td className="grid-total">{money(activeGrid.allTotal)}</td>
                       </tr>
-                    ))}
-                    <tr className="grid-collected-row">
-                      <td>Collected</td>
-                      {g.monthTotals.map((mt, i) => <td key={i}>{mt.total ? `${mt.paid}/${mt.total}` : '–'}</td>)}
-                      <td></td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-            </section>
-          ))}
-        </div>
+                      {activeGrid.rows.map(r => (
+                        <tr key={r.member?.id || r.member?.nickname}>
+                          <td>{r.member?.nickname}</td>
+                          {r.cells.map((s, i) => <GridCell key={i} status={s} />)}
+                          <td className="grid-total">{money(r.total)}</td>
+                        </tr>
+                      ))}
+                      <tr className="grid-collected-row">
+                        <td>Collected</td>
+                        {activeGrid.monthTotals.map((mt, i) => <td key={i}>{mt.total ? `${mt.paid}/${mt.total}` : '–'}</td>)}
+                        <td></td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </section>
+            )}
+          </>
+        )
       ) : (
         <>
           <div className="content-grid two">
