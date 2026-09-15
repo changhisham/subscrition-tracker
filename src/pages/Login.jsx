@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { CreditCard, Lock, Mail } from 'lucide-react'
+import { APP_VERSION, APP_COPYRIGHT } from '../version'
 
 export default function Login() {
   const [email, setEmail] = useState('')
@@ -30,6 +31,7 @@ export default function Login() {
         </form>
         <div className="login-note"><Mail size={15}/> Accounts are managed through Supabase Auth.</div>
       </div>
+      <div className="login-footer">v{APP_VERSION} · {APP_COPYRIGHT}</div>
     </div>
   )
 }

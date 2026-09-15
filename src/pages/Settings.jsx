@@ -3,6 +3,7 @@ import { Play } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { supabase } from '../lib/supabase'
 import { runAutoGenerateBillingPeriods } from '../services/billing'
+import { APP_VERSION, APP_COPYRIGHT, APP_TRADEMARK } from '../version'
 
 export default function Settings() {
   const { user, profile, reloadProfile } = useAuth()
@@ -43,7 +44,7 @@ export default function Settings() {
         </section>
         <section className="panel">
           <div className="panel-header"><h3>Application</h3></div>
-          <div className="detail-list"><div><span>Currency</span><strong>MYR</strong></div><div><span>Authentication</span><strong>Supabase Auth</strong></div><div><span>Storage</span><strong>Supabase Storage</strong></div><div><span>Reminders</span><strong>Not enabled</strong></div></div>
+          <div className="detail-list"><div><span>Currency</span><strong>MYR</strong></div><div><span>Authentication</span><strong>Supabase Auth</strong></div><div><span>Storage</span><strong>Supabase Storage</strong></div><div><span>Reminders</span><strong>Not enabled</strong></div><div><span>Version</span><strong>{APP_VERSION}</strong></div><div><span>Trademark</span><strong>{APP_TRADEMARK}</strong></div><div><span>Copyright</span><strong>{APP_COPYRIGHT}</strong></div></div>
         </section>
       </div>
 
