@@ -46,11 +46,11 @@ export default function AppShell({ children }) {
 
       {open && <button className="sidebar-overlay" onClick={() => setOpen(false)} aria-label="Close navigation" />}
       <main className="main">
-        <header className="topbar">
+        {/* <header className="topbar">
           <button className="icon-btn mobile-only" onClick={() => setOpen(true)}><Menu size={21} /></button>
           <div><div className="eyebrow">Subscription Payment Tracker</div><h1>{current}</h1></div>
           <div className="topbar-spacer" />
-        </header>
+        </header> */}
         <div className="page">{children}</div>
       </main>
     </div>
