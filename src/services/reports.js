@@ -16,6 +16,21 @@ export async function monthlySummary(year, month) {
   return data || []
 }
 
+export async function yearlySummary(year) {
+  const from = `${year}-01-01`
+  const to = `${year}-12-31`
+
+  const { data, error } = await supabase
+    .from('payments')
+    .select('amount_due, amount_paid, status, due_date, member:members(nickname), subscription:subscriptions(name)')
+    .gte('due_date', from)
+    .lte('due_date', to)
+    .order('due_date')
+
+  if (error) throw error
+  return data || []
+}
+
 export function exportCsv(rows, filename = 'report.csv') {
   if (!rows.length) return
   const headers = Object.keys(rows[0])

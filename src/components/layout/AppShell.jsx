@@ -22,7 +22,7 @@ export default function AppShell({ children }) {
     <div className="app-shell">
       <aside className={`sidebar ${open ? 'sidebar-open' : ''}`}>
         <div className="brand">
-          <div className="brand-mark">S</div>
+          <div className="brand-mark"><img src="/logo-mark.png" alt="SubTrack" /></div>
           <div><strong>SubTrack</strong><span>Payment Tracker</span></div>
         </div>
 

@@ -20,7 +20,7 @@ export default function Login() {
   return (
     <div className="login-page">
       <div className="login-card">
-        <div className="login-brand"><div className="brand-mark large">S</div><div><strong>SubTrack</strong><span>Subscription Payment Tracker</span></div></div>
+        <div className="login-brand"><div className="brand-mark large"><img src="/logo-mark.png" alt="SubTrack" /></div><div><strong>SubTrack</strong><span>Subscription Payment Tracker</span></div></div>
         <div className="login-copy"><h1>Welcome back</h1><p>Sign in to manage your shared subscriptions and payments.</p></div>
         <form onSubmit={submit} className="form-stack">
           <label>Email<input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="you@example.com" required /></label>
