@@ -1,17 +1,30 @@
 import { useState } from 'react'
+import { Play } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { supabase } from '../lib/supabase'
+import { runAutoGenerateBillingPeriods } from '../services/billing'
 
 export default function Settings() {
   const { user, profile, reloadProfile } = useAuth()
   const [name, setName] = useState(profile?.display_name || '')
   const [message, setMessage] = useState('')
+  const [autoBusy, setAutoBusy] = useState(false)
+  const [autoMessage, setAutoMessage] = useState('')
 
   async function save(e) {
     e.preventDefault()
     const { error } = await supabase.from('profiles').update({ display_name: name }).eq('id', user.id)
     setMessage(error ? error.message : 'Profile updated.')
     if (!error) reloadProfile()
+  }
+
+  async function runNow() {
+    setAutoBusy(true); setAutoMessage('')
+    try {
+      await runAutoGenerateBillingPeriods()
+      setAutoMessage('Done — billing periods generated for every active monthly subscription this month (skips ones already generated).')
+    } catch (e) { setAutoMessage(e.message) }
+    setAutoBusy(false)
   }
 
   return (
@@ -33,6 +46,18 @@ export default function Settings() {
           <div className="detail-list"><div><span>Currency</span><strong>MYR</strong></div><div><span>Authentication</span><strong>Supabase Auth</strong></div><div><span>Storage</span><strong>Supabase Storage</strong></div><div><span>Reminders</span><strong>Not enabled</strong></div></div>
         </section>
       </div>
+
+      <section className="panel">
+        <div className="panel-header"><div><h3>Billing automation</h3><p>A daily job auto-generates this month's billing period for every active monthly subscription. Yearly subscriptions still need manual generation from their Subscription Details page.</p></div></div>
+        <div className="form-stack">
+          <button className="btn primary" onClick={runNow} disabled={autoBusy}><Play size={16}/>Run now</button>
+          {autoMessage && <div className="alert">{autoMessage}</div>}
+        </div>
+        <div className="callout">
+          <strong>Runs automatically once a day.</strong>
+          <span>If the daily schedule isn't active on your Supabase project (some plans don't enable the pg_cron extension), use "Run now" instead — it's safe to click any time, already-generated periods are skipped.</span>
+        </div>
+      </section>
     </>
   )
 }

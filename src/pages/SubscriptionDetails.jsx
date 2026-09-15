@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { AlertTriangle, ArrowLeft, CalendarPlus, Check, Trash2, UserPlus } from 'lucide-react'
+import { AlertTriangle, ArrowLeft, CalendarPlus, Check, Save, Trash2, UserPlus } from 'lucide-react'
 import { getSubscription, listMembers, removeSubscriptionMember, saveSubscriptionMember, updateSubscription } from '../services/subscriptions'
 import { generateBillingPeriod } from '../services/billing'
 import { money } from '../utils/currency'
@@ -17,11 +17,28 @@ export default function SubscriptionDetails() {
   const [message, setMessage] = useState('')
   const [messageType, setMessageType] = useState('ok')
 
+  const [subForm, setSubForm] = useState(null)
+  const [subBusy, setSubBusy] = useState(false)
+  const [subMessage, setSubMessage] = useState('')
+
   async function load() {
     const [s, m] = await Promise.all([getSubscription(id), listMembers()])
     setSubscription(s); setMembers(m)
   }
   useEffect(() => { load() }, [id])
+
+  useEffect(() => {
+    if (!subscription) return
+    setSubForm({
+      name: subscription.name,
+      provider: subscription.provider || '',
+      price: subscription.price,
+      billing_day: subscription.billing_day,
+      billing_frequency: subscription.billing_frequency,
+      status: subscription.status,
+      notes: subscription.notes || '',
+    })
+  }, [subscription])
 
   const charges = useMemo(() => (subscription?.subscription_members || []).reduce((a, x) => a + Number(x.monthly_amount || 0), 0), [subscription])
 
@@ -48,7 +65,22 @@ export default function SubscriptionDetails() {
     } catch (e) { setMessageType('warn'); setMessage(e.message) }
   }
 
-  if (!subscription) return <div className="empty">Loading…</div>
+  async function saveSub(e) {
+    e.preventDefault()
+    setSubBusy(true); setSubMessage('')
+    try {
+      await updateSubscription(id, {
+        ...subForm,
+        price: Number(subForm.price),
+        billing_day: Number(subForm.billing_day),
+      })
+      setSubMessage('Subscription updated.')
+      await load()
+    } catch (e) { setSubMessage(e.message) }
+    setSubBusy(false)
+  }
+
+  if (!subscription || !subForm) return <div className="empty">Loading…</div>
 
   return (
     <>
@@ -66,20 +98,23 @@ export default function SubscriptionDetails() {
 
       <div className="content-grid two">
         <section className="panel">
-          <div className="panel-header"><div><h3>Members & pricing</h3><p>Amounts are individually configurable.</p></div></div>
-          <div className="payment-list">
-            {subscription.subscription_members?.map(sm => <div className="payment-row" key={sm.id}>
-              <div className="avatar soft">{sm.member?.nickname?.slice(0,1).toUpperCase()}</div>
-              <div className="row-main"><strong>{sm.member?.nickname}</strong><span>Joined {formatDate(sm.joined_date)}</span></div>
-              <div className="row-end"><strong>{money(sm.monthly_amount)}</strong><button className="icon-btn danger-icon" onClick={()=>remove(sm.id)}><Trash2 size={15}/></button></div>
-            </div>)}
-            {!subscription.subscription_members?.length && <div className="empty">No members added.</div>}
-          </div>
-          <form className="inline-form" onSubmit={addMember}>
-            <select value={memberId} onChange={e=>setMemberId(e.target.value)} required><option value="">Select friend</option>{members.filter(m=>!subscription.subscription_members?.some(x=>x.member_id===m.id)).map(m=><option key={m.id} value={m.id}>{m.nickname}</option>)}</select>
-            <input type="date" value={joinDate} onChange={e=>setJoinDate(e.target.value)} required title="Joined date"/>
-            <input type="number" step="0.01" min="0" placeholder="MYR amount" value={amount} onChange={e=>setAmount(e.target.value)} required/>
-            <button className="btn primary"><UserPlus size={16}/>Add</button>
+          <div className="panel-header"><div><h3>Edit subscription</h3><p>Update the details below and save.</p></div></div>
+          <form className="form-stack" onSubmit={saveSub}>
+            <div className="form-grid">
+              <label>Name<input value={subForm.name} onChange={e=>setSubForm({...subForm,name:e.target.value})} required/></label>
+              <label>Provider<input value={subForm.provider} onChange={e=>setSubForm({...subForm,provider:e.target.value})}/></label>
+            </div>
+            <div className="form-grid">
+              <label>Bill price (MYR)<input type="number" step="0.01" min="0" value={subForm.price} onChange={e=>setSubForm({...subForm,price:e.target.value})} required/></label>
+              <label>Billing day<input type="number" min="1" max="31" value={subForm.billing_day} onChange={e=>setSubForm({...subForm,billing_day:e.target.value})}/></label>
+            </div>
+            <div className="form-grid">
+              <label>Billing frequency<select value={subForm.billing_frequency} onChange={e=>setSubForm({...subForm,billing_frequency:e.target.value})}><option value="MONTHLY">Monthly</option><option value="YEARLY">Yearly</option></select></label>
+              <label>Status<select value={subForm.status} onChange={e=>setSubForm({...subForm,status:e.target.value})}><option value="ACTIVE">Active</option><option value="CANCELLED">Cancelled</option></select></label>
+            </div>
+            <label>Notes<textarea value={subForm.notes} onChange={e=>setSubForm({...subForm,notes:e.target.value})} placeholder="Optional"/></label>
+            <button className="btn primary" disabled={subBusy}><Save size={16}/>Save changes</button>
+            {subMessage && <div className="alert"><Check size={16}/>{subMessage}</div>}
           </form>
         </section>
 
@@ -87,7 +122,8 @@ export default function SubscriptionDetails() {
           <div className="panel-header"><div><h3>Generate billing period</h3><p>Creates payment snapshots using the members' current amounts.</p></div></div>
           <div className="form-stack">
             <label>Billing month<input type="month" value={period} onChange={e=>setPeriod(e.target.value)}/></label>
-            <button className="btn primary" onClick={generate}><CalendarPlus size={16}/>Generate payments</button>
+            <button className="btn primary" onClick={generate} disabled={subscription.status !== 'ACTIVE'}><CalendarPlus size={16}/>Generate payments</button>
+            {subscription.status !== 'ACTIVE' && <div className="alert error"><AlertTriangle size={16}/>This subscription is cancelled — reactivate it above to generate new billing periods. Existing payment history below is unaffected.</div>}
             {message && <div className={`alert ${messageType === 'warn' ? 'error' : ''}`}>{messageType === 'warn' ? <AlertTriangle size={16}/> : <Check size={16}/>}{message}</div>}
           </div>
           <div className="callout">
@@ -98,6 +134,24 @@ export default function SubscriptionDetails() {
           </div>
         </section>
       </div>
+
+      <section className="panel">
+        <div className="panel-header"><div><h3>Members & pricing</h3><p>Amounts are individually configurable.</p></div></div>
+        <div className="payment-list">
+          {subscription.subscription_members?.map(sm => <div className="payment-row" key={sm.id}>
+            <div className="avatar soft">{sm.member?.nickname?.slice(0,1).toUpperCase()}</div>
+            <div className="row-main"><strong>{sm.member?.nickname}</strong><span>Joined {formatDate(sm.joined_date)}</span></div>
+            <div className="row-end"><strong>{money(sm.monthly_amount)}</strong><button className="icon-btn danger-icon" onClick={()=>remove(sm.id)}><Trash2 size={15}/></button></div>
+          </div>)}
+          {!subscription.subscription_members?.length && <div className="empty">No members added.</div>}
+        </div>
+        <form className="inline-form" onSubmit={addMember}>
+          <select value={memberId} onChange={e=>setMemberId(e.target.value)} required><option value="">Select friend</option>{members.filter(m=>!subscription.subscription_members?.some(x=>x.member_id===m.id)).map(m=><option key={m.id} value={m.id}>{m.nickname}</option>)}</select>
+          <input type="date" value={joinDate} onChange={e=>setJoinDate(e.target.value)} required title="Joined date"/>
+          <input type="number" step="0.01" min="0" placeholder="MYR amount" value={amount} onChange={e=>setAmount(e.target.value)} required/>
+          <button className="btn primary"><UserPlus size={16}/>Add</button>
+        </form>
+      </section>
     </>
   )
 }

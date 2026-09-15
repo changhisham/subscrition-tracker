@@ -23,6 +23,16 @@ export async function updatePayment(id, payload) {
   return data
 }
 
+export async function listPaymentLog(paymentId) {
+  const { data, error } = await supabase
+    .from('payment_status_log')
+    .select('*')
+    .eq('payment_id', paymentId)
+    .order('changed_at', { ascending: false })
+  if (error) throw error
+  return data || []
+}
+
 export async function uploadReceipt(paymentId, file) {
   const extension = file.name.split('.').pop() || 'bin'
   const path = `${paymentId}/${crypto.randomUUID()}.${extension}`

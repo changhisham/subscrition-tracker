@@ -8,3 +8,8 @@ export async function generateBillingPeriod(subscriptionId, periodStart) {
   if (error) throw error
   return data
 }
+
+export async function runAutoGenerateBillingPeriods() {
+  const { error } = await supabase.rpc('run_auto_generate_billing_periods')
+  if (error) throw error
+}

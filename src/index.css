@@ -84,6 +84,7 @@ a { color: inherit; text-decoration: none; }
 .status-paid { color: #027a48; background: #ecfdf3; }
 .status-overdue { color: #b42318; background: #fef3f2; }
 .status-waived { color: #475467; background: #f2f4f7; }
+.status-partial { color: #175CD3; background: #eff8ff; }
 
 .form-stack { display: grid; gap: 14px; padding: 20px; }
 .form-stack label, .form-grid label { display: grid; gap: 6px; color: #344054; font-size: 12px; font-weight: 600; }
@@ -137,7 +138,8 @@ input:focus, textarea:focus, select:focus { border-color: var(--brand); box-shad
 .sub-add-form select, .sub-add-form input { flex: 1 1 120px; padding: 7px 8px; font-size: 11px; border: 1px solid #d0d5dd; border-radius: 7px; background: #fff; color: #101828; }
 .sub-add-form button { flex: 0 0 auto; }
 
-.edit-status-select, .edit-date-input { border: 1px solid #d0d5dd; border-radius: 7px; padding: 6px 8px; font-size: 11px; background: #fff; color: #101828; }
+.edit-status-select, .edit-date-input, .edit-amount-input { border: 1px solid #d0d5dd; border-radius: 7px; padding: 6px 8px; font-size: 11px; background: #fff; color: #101828; }
+.edit-amount-input { width: 92px; }
 
 .grid-panels { display: grid; gap: 18px; }
 .grid-table { min-width: 780px; }
@@ -156,6 +158,26 @@ input:focus, textarea:focus, select:focus { border-color: var(--brand); box-shad
 .grid-cell-empty { color: #d0d5dd; }
 
 .table-wrap { overflow-x: auto; }
+
+.search-row { display: flex; align-items: center; gap: 8px; background: #fff; border: 1px solid #e4e7ec; border-radius: 9px; padding: 9px 12px; margin-bottom: 14px; color: #98a2b3; }
+.search-row input { border: 0; flex: 1; font-size: 13px; color: #101828; background: transparent; }
+.search-row input:focus { outline: none; box-shadow: none; }
+
+.bulk-bar { display: flex; align-items: center; gap: 10px; background: var(--brand-soft); border: 1px solid rgba(59,28,100,.18); border-radius: 9px; padding: 10px 14px; margin-bottom: 14px; font-size: 12px; color: var(--brand); font-weight: 600; }
+
+table th:first-child, table td:first-child { width: 34px; }
+table input[type="checkbox"] { width: 15px; height: 15px; accent-color: var(--brand); cursor: pointer; }
+
+.history-row td { background: #fafafa; padding: 10px 16px; }
+.history-list { display: grid; gap: 6px; list-style: none; }
+.history-list li { font-size: 11px; color: #475467; }
+.history-who { font-weight: 700; color: #101828; }
+.empty.small { padding: 4px 0; font-size: 11px; }
+
+.owing-text { color: #b42318; }
+
+.sub-status-tabs { margin: 2px 20px 6px; border-bottom: 0; }
+.sub-status-tabs button { padding: 6px 10px; }
 table { width: 100%; border-collapse: collapse; min-width: 850px; }
 th, td { padding: 12px 16px; border-bottom: 1px solid #eaecf0; text-align: left; font-size: 12px; }
 th { color: #667085; font-size: 10px; text-transform: uppercase; letter-spacing: .04em; background: #fcfcfd; }

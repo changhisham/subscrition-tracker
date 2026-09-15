@@ -6,6 +6,7 @@ import Dashboard from './pages/Dashboard'
 import Subscriptions from './pages/Subscriptions'
 import SubscriptionDetails from './pages/SubscriptionDetails'
 import Friends from './pages/Friends'
+import Balances from './pages/Balances'
 import Payments from './pages/Payments'
 import Reports from './pages/Reports'
 import Settings from './pages/Settings'
@@ -20,6 +21,7 @@ function Protected() {
     <Route path="/subscriptions" element={<Subscriptions />} />
     <Route path="/subscriptions/:id" element={<SubscriptionDetails />} />
     <Route path="/friends" element={<Friends />} />
+    <Route path="/balances" element={<Balances />} />
     <Route path="/payments" element={<Payments />} />
     <Route path="/reports" element={<Reports />} />
     <Route path="/settings" element={<Settings />} />
