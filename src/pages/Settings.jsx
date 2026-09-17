@@ -8,15 +8,27 @@ import { APP_VERSION, APP_COPYRIGHT, APP_TRADEMARK } from '../version'
 export default function Settings() {
   const { user, profile, reloadProfile } = useAuth()
   const [name, setName] = useState(profile?.display_name || '')
+  const [username, setUsername] = useState(profile?.username || '')
   const [message, setMessage] = useState('')
   const [autoBusy, setAutoBusy] = useState(false)
   const [autoMessage, setAutoMessage] = useState('')
 
   async function save(e) {
     e.preventDefault()
-    const { error } = await supabase.from('profiles').update({ display_name: name }).eq('id', user.id)
-    setMessage(error ? error.message : 'Profile updated.')
-    if (!error) reloadProfile()
+    setMessage('')
+    const cleanUsername = username.trim().toLowerCase()
+    if (!/^[a-z0-9_]{3,24}$/.test(cleanUsername)) {
+      setMessage('Username must be 3–24 characters: lowercase letters, numbers, and underscores only.')
+      return
+    }
+    const { error } = await supabase.from('profiles').update({ display_name: name, username: cleanUsername }).eq('id', user.id)
+    if (error) {
+      setMessage(error.code === '23505' || /duplicate/i.test(error.message) ? 'That username is already taken.' : error.message)
+    } else {
+      setUsername(cleanUsername)
+      setMessage('Profile updated.')
+      reloadProfile()
+    }
   }
 
   async function runNow() {
@@ -36,6 +48,7 @@ export default function Settings() {
           <div className="panel-header"><h3>Profile</h3></div>
           <form className="form-stack" onSubmit={save}>
             <label>Display name<input value={name} onChange={e=>setName(e.target.value)} placeholder="Your name"/></label>
+            <label>Username<input value={username} onChange={e=>setUsername(e.target.value)} placeholder="yourname" autoCapitalize="none" autoCorrect="off"/></label>
             <label>Email<input value={user?.email || ''} disabled/></label>
             <label>Role<input value={profile?.role || ''} disabled/></label>
             <button className="btn primary">Save changes</button>

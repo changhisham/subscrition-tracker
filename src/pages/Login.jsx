@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { supabase } from '../lib/supabase'
-import { CreditCard, Lock, Mail } from 'lucide-react'
+import { resolveUsernameToEmail } from '../services/auth'
+import { Lock, User } from 'lucide-react'
 import { APP_VERSION, APP_COPYRIGHT } from '../version'
 
 const previewSubs = [
@@ -10,7 +11,7 @@ const previewSubs = [
 ]
 
 export default function Login() {
-  const [email, setEmail] = useState('')
+  const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
@@ -19,8 +20,18 @@ export default function Login() {
     e.preventDefault()
     setBusy(true)
     setError('')
-    const { error: authError } = await supabase.auth.signInWithPassword({ email, password })
-    if (authError) setError(authError.message)
+    try {
+      const email = await resolveUsernameToEmail(username)
+      if (!email) {
+        setError('Invalid username or password.')
+        setBusy(false)
+        return
+      }
+      const { error: authError } = await supabase.auth.signInWithPassword({ email, password })
+      if (authError) setError('Invalid username or password.')
+    } catch {
+      setError('Something went wrong. Please try again.')
+    }
     setBusy(false)
   }
 
