@@ -1,12 +1,15 @@
 import { useEffect, useMemo, useState } from 'react'
-import { CheckCircle2, Scale } from 'lucide-react'
+import { CheckCircle2, CheckCircle, Scale, Users } from 'lucide-react'
 import { listPayments, updatePayment } from '../services/payments'
 import { SkeletonList } from '../components/ui/Skeleton'
+import StatCard from '../components/ui/StatCard'
+import { useToast } from '../context/ToastContext'
 import { money } from '../utils/currency'
 import { todayIso } from '../utils/dates'
 import { colorFor } from '../utils/color'
 
 export default function Balances() {
+  const toast = useToast()
   const [payments, setPayments] = useState([])
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState('')
@@ -40,9 +43,14 @@ export default function Balances() {
 
   async function settleAll(entry) {
     setBusy(entry.member?.id)
-    const targets = payments.filter(p => entry.unpaidIds.includes(p.id))
-    await Promise.all(targets.map(p => updatePayment(p.id, { status: 'PAID', payment_date: todayIso(), amount_paid: p.amount_due })))
-    await load()
+    try {
+      const targets = payments.filter(p => entry.unpaidIds.includes(p.id))
+      await Promise.all(targets.map(p => updatePayment(p.id, { status: 'PAID', payment_date: todayIso(), amount_paid: p.amount_due })))
+      await load()
+      toast.success(`Settled ${entry.unpaidIds.length} payment${entry.unpaidIds.length === 1 ? '' : 's'} for ${entry.member?.nickname || 'friend'}`)
+    } catch (e) {
+      toast.error(e.message)
+    }
     setBusy('')
   }
 
@@ -51,9 +59,9 @@ export default function Balances() {
       <div className="page-heading-row"><div><h2>Balances</h2><p>Lifetime totals across every subscription — settle up with a friend in one click.</p></div></div>
 
       <div className="stats-grid three">
-        <div className="mini-card"><span>Total outstanding</span><strong>{money(totalOutstanding)}</strong></div>
-        <div className="mini-card"><span>Friends tracked</span><strong>{balances.length}</strong></div>
-        <div className="mini-card"><span>Fully settled</span><strong>{settledCount}</strong></div>
+        <StatCard label="Total outstanding" value={money(totalOutstanding)} icon={Scale} tone={totalOutstanding > 0 ? 'danger' : 'success'} />
+        <StatCard label="Friends tracked" value={String(balances.length)} icon={Users} />
+        <StatCard label="Fully settled" value={String(settledCount)} icon={CheckCircle} tone="success" />
       </div>
 
       <section className="panel">
@@ -62,10 +70,16 @@ export default function Balances() {
           <div className="payment-list">
             {balances.map(b => {
               const tint = colorFor(b.member?.nickname)
+              const pct = b.due > 0 ? Math.min(100, (b.paid / b.due) * 100) : 100
+              const barColor = pct >= 100 ? '#039855' : pct >= 50 ? '#dc6803' : '#d92d20'
               return (
-              <div className="payment-row" key={b.member?.id || b.member?.nickname}>
+              <div className="payment-row balance-row" key={b.member?.id || b.member?.nickname}>
                 <div className="avatar soft" style={{ background: tint.bg, color: tint.fg }}>{b.member?.nickname?.slice(0,1).toUpperCase() || '?'}</div>
-                <div className="row-main"><strong>{b.member?.nickname}</strong><span>{money(b.paid)} paid of {money(b.due)} billed{b.overdue ? ` · ${b.overdue} overdue` : ''}</span></div>
+                <div className="row-main">
+                  <strong>{b.member?.nickname}</strong>
+                  <span>{money(b.paid)} paid of {money(b.due)} billed{b.overdue ? ` · ${b.overdue} overdue` : ''}</span>
+                  <div className="progress-track"><div className="progress-fill" style={{ width: `${pct}%`, background: barColor }} /></div>
+                </div>
                 <div className="row-end">
                   <strong className={b.outstanding > 0 ? 'owing-text' : ''}>{b.outstanding > 0 ? `${money(b.outstanding)} owing` : 'Settled up'}</strong>
                   {b.outstanding > 0 && <button className="btn small success-btn" disabled={busy===b.member?.id} onClick={()=>settleAll(b)}><CheckCircle2 size={14}/>Settle all</button>}

@@ -1,7 +1,7 @@
 import { TrendingDown, TrendingUp } from 'lucide-react'
 import Sparkline from './Sparkline'
 
-const sparklineColors = { default: '#3B1C64', success: '#039855', warning: '#dc6803', danger: '#d92d20' }
+const sparklineColors = { default: '#5B21B6', success: '#039855', warning: '#dc6803', danger: '#d92d20' }
 
 export default function StatCard({ label, value, icon: Icon, tone = 'default', hint, delta, sparkline }) {
   return (

@@ -1,4 +1,4 @@
-export default function Sparkline({ data, color = '#3B1C64', width = 64, height = 26 }) {
+export default function Sparkline({ data, color = '#5B21B6', width = 64, height = 26 }) {
   if (!data || data.length < 2) return null
   const max = Math.max(...data, 0)
   const min = Math.min(...data, 0)

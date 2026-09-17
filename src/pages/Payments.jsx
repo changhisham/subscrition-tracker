@@ -1,18 +1,23 @@
 import { useEffect, useMemo, useState } from 'react'
-import { CheckCircle2, History, Pencil, Search, Upload, X } from 'lucide-react'
+import { AlertCircle, CheckCircle2, CreditCard, History, Pencil, Search, Upload, WalletCards, X } from 'lucide-react'
 import { listPaymentLog, listPayments, updatePayment, uploadReceipt } from '../services/payments'
 import StatusBadge from '../components/ui/StatusBadge'
+import StatCard from '../components/ui/StatCard'
 import { useAuth } from '../context/AuthContext'
+import { useToast } from '../context/ToastContext'
 import { money } from '../utils/currency'
 import { formatDate, monthInputValue, todayIso } from '../utils/dates'
 
 const statusOptions = ['PENDING', 'PAID', 'OVERDUE', 'WAIVED']
+const tabs = ['All', 'Pending', 'Overdue', 'Paid', 'Waived']
 const COLS = 7
 
 export default function Payments() {
   const { user } = useAuth()
+  const toast = useToast()
   const [month, setMonth] = useState(monthInputValue())
   const [payments, setPayments] = useState([])
+  const [tab, setTab] = useState('All')
   const [search, setSearch] = useState('')
   const [busy, setBusy] = useState('')
   const [editing, setEditing] = useState(null)
@@ -31,16 +36,28 @@ export default function Payments() {
 
   async function status(id, next, amountDue) {
     setBusy(id)
-    const payload = { status: next }
-    if (next === 'PAID') { payload.payment_date = todayIso(); payload.amount_paid = amountDue }
-    await updatePayment(id, payload); await load(); setBusy('')
+    try {
+      const payload = { status: next }
+      if (next === 'PAID') { payload.payment_date = todayIso(); payload.amount_paid = amountDue }
+      await updatePayment(id, payload); await load()
+      toast.success(next === 'PAID' ? 'Payment marked as paid' : `Payment marked ${next.toLowerCase()}`)
+    } catch (e) {
+      toast.error(e.message)
+    }
+    setBusy('')
   }
 
   async function receipt(id, file) {
     if (!file) return
     setBusy(id)
-    await uploadReceipt(id, file)
-    await load(); setBusy('')
+    try {
+      await uploadReceipt(id, file)
+      await load()
+      toast.success('Receipt uploaded')
+    } catch (e) {
+      toast.error(e.message)
+    }
+    setBusy('')
   }
 
   function startEdit(p) {
@@ -51,17 +68,23 @@ export default function Payments() {
 
   async function saveEdit(id, amountDue) {
     setBusy(id)
-    let amountPaid = Number(editForm.amount_paid)
-    if (Number.isNaN(amountPaid) || amountPaid < 0) amountPaid = 0
-    if (amountPaid > Number(amountDue)) amountPaid = Number(amountDue)
-    const nextStatus = editForm.status
-    const payload = {
-      status: nextStatus,
-      amount_paid: nextStatus === 'PAID' ? Number(amountDue) : amountPaid,
-      payment_date: nextStatus === 'PAID' ? (editForm.payment_date || todayIso()) : null,
+    try {
+      let amountPaid = Number(editForm.amount_paid)
+      if (Number.isNaN(amountPaid) || amountPaid < 0) amountPaid = 0
+      if (amountPaid > Number(amountDue)) amountPaid = Number(amountDue)
+      const nextStatus = editForm.status
+      const payload = {
+        status: nextStatus,
+        amount_paid: nextStatus === 'PAID' ? Number(amountDue) : amountPaid,
+        payment_date: nextStatus === 'PAID' ? (editForm.payment_date || todayIso()) : null,
+      }
+      await updatePayment(id, payload)
+      setEditing(null); await load()
+      toast.success('Payment updated')
+    } catch (e) {
+      toast.error(e.message)
     }
-    await updatePayment(id, payload)
-    setEditing(null); await load(); setBusy('')
+    setBusy('')
   }
 
   function toggleSelect(id) {
@@ -78,12 +101,18 @@ export default function Payments() {
 
   async function bulkStatus(next) {
     setBusy('bulk')
-    const targets = payments.filter(p => selected.has(p.id))
-    await Promise.all(targets.map(p => updatePayment(p.id, next === 'PAID'
-      ? { status: 'PAID', payment_date: todayIso(), amount_paid: p.amount_due }
-      : { status: 'WAIVED' })))
-    setSelected(new Set())
-    await load(); setBusy('')
+    try {
+      const targets = payments.filter(p => selected.has(p.id))
+      await Promise.all(targets.map(p => updatePayment(p.id, next === 'PAID'
+        ? { status: 'PAID', payment_date: todayIso(), amount_paid: p.amount_due }
+        : { status: 'WAIVED' })))
+      toast.success(`${targets.length} payment${targets.length === 1 ? '' : 's'} ${next === 'PAID' ? 'marked as paid' : 'waived'}`)
+      setSelected(new Set())
+      await load()
+    } catch (e) {
+      toast.error(e.message)
+    }
+    setBusy('')
   }
 
   async function toggleHistory(id) {
@@ -93,10 +122,12 @@ export default function Payments() {
   }
 
   const filtered = useMemo(() => {
+    let list = payments
+    if (tab !== 'All') list = list.filter(p => p.status === tab.toUpperCase())
     const q = search.trim().toLowerCase()
-    if (!q) return payments
-    return payments.filter(p => (p.member?.nickname || '').toLowerCase().includes(q) || (p.subscription?.name || '').toLowerCase().includes(q))
-  }, [payments, search])
+    if (q) list = list.filter(p => (p.member?.nickname || '').toLowerCase().includes(q) || (p.subscription?.name || '').toLowerCase().includes(q))
+    return list
+  }, [payments, tab, search])
 
   const grouped = useMemo(() => {
     const map = new Map()
@@ -107,6 +138,14 @@ export default function Payments() {
     })
     return Array.from(map.values()).sort((a, b) => (a.subscription?.name || '').localeCompare(b.subscription?.name || ''))
   }, [filtered])
+
+  const stats = useMemo(() => {
+    const due = payments.reduce((a, p) => a + Number(p.amount_due || 0), 0)
+    const received = payments.reduce((a, p) => a + Number(p.amount_paid || 0), 0)
+    const outstanding = payments.filter(p => !['PAID', 'WAIVED'].includes(p.status)).reduce((a, p) => a + Math.max(0, Number(p.amount_due || 0) - Number(p.amount_paid || 0)), 0)
+    const overdue = payments.filter(p => p.status === 'OVERDUE').length
+    return { due, received, outstanding, overdue }
+  }, [payments])
 
   function paymentRow(p) {
     return [
@@ -167,6 +206,15 @@ export default function Payments() {
     <>
       <div className="page-heading-row"><div><h2>Payments</h2><p>Track what is pending, paid, overdue, or waived.</p></div><input className="month-picker" type="month" value={month} onChange={e=>setMonth(e.target.value)}/></div>
 
+      <div className="stats-grid">
+        <StatCard label="Total due" value={money(stats.due)} icon={CreditCard} />
+        <StatCard label="Received" value={money(stats.received)} icon={CheckCircle2} tone="success" />
+        <StatCard label="Outstanding" value={money(stats.outstanding)} icon={WalletCards} tone="warning" />
+        <StatCard label="Overdue" value={String(stats.overdue)} icon={AlertCircle} tone="danger" hint="payments" />
+      </div>
+
+      <div className="report-tabs">{tabs.map(t => <button key={t} className={tab===t?'active':''} onClick={()=>setTab(t)}>{t}</button>)}</div>
+
       <div className="search-row"><Search size={15}/><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search by friend or subscription…"/></div>
 
       {selected.size > 0 && (
@@ -180,7 +228,7 @@ export default function Payments() {
 
       <div className="grid-panels">
         {!grouped.length ? (
-          <section className="panel"><div className="empty">No payment records for this month. Generate a billing period from a subscription.</div></section>
+          <section className="panel"><div className="empty">{payments.length ? `No ${tab === 'All' ? '' : tab.toLowerCase() + ' '}payments match this filter.` : 'No payment records for this month. Generate a billing period from a subscription.'}</div></section>
         ) : grouped.map(g => {
           const ids = g.rows.map(r => r.id)
           const allSelected = ids.length > 0 && ids.every(id => selected.has(id))

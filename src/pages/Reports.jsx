@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Download, FileBarChart2, Search } from 'lucide-react'
+import { CheckCircle2, Download, FileBarChart2, PieChart as PieChartIcon, Search, Wallet } from 'lucide-react'
 import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { monthlySummary, yearlySummary, exportCsv } from '../services/reports'
 import StatusBadge from '../components/ui/StatusBadge'
+import StatCard from '../components/ui/StatCard'
 import { Skeleton } from '../components/ui/Skeleton'
 import { money } from '../utils/currency'
 import { monthInputValue } from '../utils/dates'
@@ -56,6 +57,7 @@ export default function Reports() {
 
   const total = visible.reduce((a,r)=>a+Number(r.amount_due||0),0)
   const received = visible.reduce((a,r)=>a+Number(r.amount_paid||0),0)
+  const collectPct = total > 0 ? Math.min(100, (received / total) * 100) : 0
   const periodLabel = scope === 'Yearly' ? String(year) : month
 
   return (
@@ -67,6 +69,12 @@ export default function Reports() {
               {years.map(y => <option key={y} value={y}>{y}</option>)}
             </select>
           : <input className="month-picker" type="month" value={month} onChange={e => setMonth(e.target.value)}/>}
+      </div>
+
+      <div className="stats-grid three">
+        <StatCard label="Total due" value={money(total)} icon={Wallet} />
+        <StatCard label="Received" value={money(received)} icon={CheckCircle2} tone="success" />
+        <StatCard label="Collection rate" value={`${Math.round(collectPct)}%`} icon={PieChartIcon} tone={collectPct >= 90 ? 'success' : collectPct >= 50 ? 'warning' : 'danger'} />
       </div>
 
       <div className="report-tabs">{scopes.map(s => <button key={s} className={scope===s?'active':''} onClick={()=>setScope(s)}>{s}</button>)}</div>
@@ -84,7 +92,7 @@ export default function Reports() {
                 <YAxis tick={{ fontSize: 11, fill: '#667085' }} axisLine={false} tickLine={false} tickFormatter={v => money(v)} width={70} />
                 <Tooltip formatter={(value) => money(value)} contentStyle={{ fontSize: 12, borderRadius: 8, borderColor: '#e4e7ec' }} />
                 <Legend wrapperStyle={{ fontSize: 12 }} />
-                <Bar dataKey="due" name="Due" fill="#3B1C64" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="due" name="Due" fill="#5B21B6" radius={[4, 4, 0, 0]} />
                 <Bar dataKey="received" name="Received" fill="#039855" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>

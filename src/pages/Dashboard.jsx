@@ -5,11 +5,20 @@ import StatCard from '../components/ui/StatCard'
 import StatusBadge from '../components/ui/StatusBadge'
 import RadialMeter from '../components/ui/RadialMeter'
 import { Skeleton, SkeletonList } from '../components/ui/Skeleton'
+import { useAuth } from '../context/AuthContext'
+import { useToast } from '../context/ToastContext'
 import { listPayments, updatePayment } from '../services/payments'
 import { listSubscriptions } from '../services/subscriptions'
 import { money } from '../utils/currency'
 import { monthInputValue, formatMonth, formatDate, todayIso } from '../utils/dates'
 import { colorFor } from '../utils/color'
+
+function greetingFor(hour) {
+  if (hour < 5) return 'Working late'
+  if (hour < 12) return 'Good morning'
+  if (hour < 18) return 'Good afternoon'
+  return 'Good evening'
+}
 
 const statusColors = { OVERDUE: '#d92d20', PENDING: '#dc6803', PAID: '#039855', WAIVED: '#98a2b3' }
 const statusTints = { OVERDUE: 'rgba(217,45,32,.12)', PENDING: 'rgba(220,104,3,.12)', PAID: 'rgba(3,152,85,.14)', WAIVED: 'rgba(152,162,179,.16)' }
@@ -56,6 +65,8 @@ function GridCell({ status }) {
 }
 
 export default function Dashboard() {
+  const { user, profile } = useAuth()
+  const toast = useToast()
   const [scope, setScope] = useState('Monthly')
   const [month, setMonth] = useState(monthInputValue())
   const [year, setYear] = useState(currentYear)
@@ -116,18 +127,23 @@ export default function Dashboard() {
 
   const active = subscriptions.filter(s => s.status === 'ACTIVE')
 
-  const upNext = useMemo(() => (
+  const dueSoon = useMemo(() => (
     payments
       .filter(p => ['OVERDUE', 'PENDING'].includes(p.status))
       .slice()
       .sort((a, b) => a.due_date.localeCompare(b.due_date))
-      .slice(0, 5)
   ), [payments])
+  const upNext = dueSoon.slice(0, 5)
 
   async function markPaid(p) {
     setBusyId(p.id)
-    await updatePayment(p.id, { status: 'PAID', payment_date: todayIso(), amount_paid: p.amount_due })
-    await load()
+    try {
+      await updatePayment(p.id, { status: 'PAID', payment_date: todayIso(), amount_paid: p.amount_due })
+      await load()
+      toast.success(`Marked ${p.subscription?.name || 'payment'} as paid for ${p.member?.nickname || 'friend'}`)
+    } catch (e) {
+      toast.error(e.message)
+    }
     setBusyId('')
   }
 
@@ -209,8 +225,27 @@ export default function Dashboard() {
   }, [yearlyGrids, scope])
   const activeGrid = yearlyGrids.find(g => (g.subscription?.id ?? g.subscription?.name) === subTab)
 
+  const name = profile?.display_name || user?.email?.split('@')[0] || 'there'
+  const initial = name.slice(0, 1).toUpperCase()
+
   return (
     <>
+      <div className="welcome-banner">
+        <div className="welcome-copy">
+          <p className="welcome-eyebrow">{greetingFor(new Date().getHours())}</p>
+          <h1>Welcome back, {name}</h1>
+          <p className="welcome-sub">
+            {loading ? 'Loading your latest activity…' : dueSoon.length
+              ? `You have ${dueSoon.length} payment${dueSoon.length === 1 ? '' : 's'} pending or overdue this ${periodWord}.`
+              : `You're all caught up — nothing pending this ${periodWord}.`}
+          </p>
+        </div>
+        <div className="welcome-meta">
+          <div className="avatar">{initial}</div>
+          <div><strong>{name}</strong><span>{user?.email}</span></div>
+        </div>
+      </div>
+
       <div className="page-heading-row">
         <div><h2>{heading}</h2><p>Here is what needs your attention this {periodWord}.</p></div>
         {scope === 'Yearly'
@@ -237,6 +272,11 @@ export default function Dashboard() {
               <strong>{money(currentBucket.received)}</strong>
               <span>collected of {money(currentBucket.total)} expected</span>
             </div>
+          </div>
+          <div className="hero-breakdown">
+            <div><span>Outstanding</span><strong>{money(currentBucket.outstanding)}</strong></div>
+            <div><span>Overdue</span><strong>{currentBucket.overdue}</strong></div>
+            <div><span>Active subs</span><strong>{active.length}</strong></div>
           </div>
         </section>
 

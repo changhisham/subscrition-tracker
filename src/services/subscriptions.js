@@ -58,6 +58,11 @@ export async function updateMember(id, payload) {
   return data
 }
 
+export async function deleteMember(id) {
+  const { error } = await supabase.from('members').delete().eq('id', id)
+  if (error) throw error
+}
+
 export async function saveSubscriptionMember(payload) {
   const { data, error } = await supabase.from('subscription_members').upsert(payload, { onConflict: 'subscription_id,member_id' }).select().single()
   if (error) throw error

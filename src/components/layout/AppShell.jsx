@@ -18,7 +18,7 @@ export default function AppShell({ children }) {
   const [open, setOpen] = useState(false)
   const { profile, signOut } = useAuth()
   const location = useLocation()
-  const current = items.find(item => item.to === location.pathname)?.label || 'Dashboard'
+  const current = items.find(item => item.to === '/' ? location.pathname === '/' : location.pathname.startsWith(item.to))?.label || 'Dashboard'
 
   return (
     <div className="app-shell">

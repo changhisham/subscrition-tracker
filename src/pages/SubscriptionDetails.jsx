@@ -1,15 +1,18 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { AlertTriangle, ArrowLeft, CalendarPlus, Check, Save, Trash2, UserPlus } from 'lucide-react'
+import { AlertTriangle, ArrowLeft, CalendarPlus, Check, Pencil, Save, Scale, Trash2, UserPlus, Users, Wallet } from 'lucide-react'
 import { getSubscription, listMembers, removeSubscriptionMember, saveSubscriptionMember, updateSubscription } from '../services/subscriptions'
 import { generateBillingPeriod } from '../services/billing'
 import { SkeletonList } from '../components/ui/Skeleton'
+import StatCard from '../components/ui/StatCard'
+import { useToast } from '../context/ToastContext'
 import { money } from '../utils/currency'
 import { formatDate, monthInputValue, todayIso } from '../utils/dates'
 import { colorFor } from '../utils/color'
 
 export default function SubscriptionDetails() {
   const { id } = useParams()
+  const toast = useToast()
   const [subscription, setSubscription] = useState(null)
   const [members, setMembers] = useState([])
   const [memberId, setMemberId] = useState('')
@@ -46,11 +49,23 @@ export default function SubscriptionDetails() {
 
   async function addMember(e) {
     e.preventDefault()
-    await saveSubscriptionMember({ subscription_id: id, member_id: memberId, monthly_amount: Number(amount), joined_date: joinDate, notes: '' })
-    setMemberId(''); setAmount(''); setJoinDate(todayIso()); await load()
+    try {
+      await saveSubscriptionMember({ subscription_id: id, member_id: memberId, monthly_amount: Number(amount), joined_date: joinDate, notes: '' })
+      setMemberId(''); setAmount(''); setJoinDate(todayIso()); await load()
+      toast.success('Friend added to subscription')
+    } catch (e) {
+      toast.error(e.message)
+    }
   }
 
-  async function remove(id2) { await removeSubscriptionMember(id2); await load() }
+  async function remove(id2) {
+    try {
+      await removeSubscriptionMember(id2); await load()
+      toast.success('Friend removed from subscription')
+    } catch (e) {
+      toast.error(e.message)
+    }
+  }
 
   async function generate() {
     setMessage('')
@@ -98,14 +113,14 @@ export default function SubscriptionDetails() {
       </div>
 
       <div className="stats-grid three">
-        <div className="mini-card"><span>Provider bill</span><strong>{money(subscription.price)}</strong></div>
-        <div className="mini-card"><span>Member charges</span><strong>{money(charges)}</strong></div>
-        <div className={`mini-card ${Math.abs(Number(subscription.price) - charges) > 0.005 ? 'warning-card' : ''}`}><span>Difference</span><strong>{money(charges - Number(subscription.price))}</strong></div>
+        <StatCard label="Provider bill" value={money(subscription.price)} icon={Wallet} />
+        <StatCard label="Member charges" value={money(charges)} icon={Users} tone="success" />
+        <StatCard label="Difference" value={money(charges - Number(subscription.price))} icon={Scale} tone={Math.abs(Number(subscription.price) - charges) > 0.005 ? 'warning' : 'default'} />
       </div>
 
       <div className="content-grid two">
         <section className="panel">
-          <div className="panel-header"><div><h3>Edit subscription</h3><p>Update the details below and save.</p></div></div>
+          <div className="panel-header"><div><h3><Pencil size={15}/> Edit subscription</h3><p>Update the details below and save.</p></div></div>
           <form className="form-stack" onSubmit={saveSub}>
             <div className="form-grid">
               <label>Name<input value={subForm.name} onChange={e=>setSubForm({...subForm,name:e.target.value})} required/></label>
@@ -126,7 +141,7 @@ export default function SubscriptionDetails() {
         </section>
 
         <section className="panel">
-          <div className="panel-header"><div><h3>Generate billing period</h3><p>Creates payment snapshots using the members' current amounts.</p></div></div>
+          <div className="panel-header"><div><h3><CalendarPlus size={15}/> Generate billing period</h3><p>Creates payment snapshots using the members' current amounts.</p></div></div>
           <div className="form-stack">
             <label>Billing month<input type="month" value={period} onChange={e=>setPeriod(e.target.value)}/></label>
             <button className="btn primary" onClick={generate} disabled={subscription.status !== 'ACTIVE'}><CalendarPlus size={16}/>Generate payments</button>
@@ -143,7 +158,7 @@ export default function SubscriptionDetails() {
       </div>
 
       <section className="panel">
-        <div className="panel-header"><div><h3>Members & pricing</h3><p>Amounts are individually configurable.</p></div></div>
+        <div className="panel-header"><div><h3><Users size={15}/> Members &amp; pricing</h3><p>Amounts are individually configurable.</p></div></div>
         <div className="payment-list">
           {subscription.subscription_members?.map(sm => {
             const tint = colorFor(sm.member?.nickname)

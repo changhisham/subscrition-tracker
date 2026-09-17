@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Play } from 'lucide-react'
+import { BadgeCheck, Bell, Coins, Database, Lock, Play, Tag } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { supabase } from '../lib/supabase'
 import { runAutoGenerateBillingPeriods } from '../services/billing'
@@ -46,6 +46,10 @@ export default function Settings() {
       <div className="content-grid two">
         <section className="panel">
           <div className="panel-header"><h3>Profile</h3></div>
+          <div className="profile-summary">
+            <div className="avatar lg">{(profile?.display_name || user?.email || 'A').slice(0, 1).toUpperCase()}</div>
+            <div><strong>{profile?.display_name || 'Admin'}</strong><span>{user?.email}</span></div>
+          </div>
           <form className="form-stack" onSubmit={save}>
             <label>Display name<input value={name} onChange={e=>setName(e.target.value)} placeholder="Your name"/></label>
             <label>Username<input value={username} onChange={e=>setUsername(e.target.value)} placeholder="yourname" autoCapitalize="none" autoCorrect="off"/></label>
@@ -57,7 +61,15 @@ export default function Settings() {
         </section>
         <section className="panel">
           <div className="panel-header"><h3>Application</h3></div>
-          <div className="detail-list"><div><span>Currency</span><strong>MYR</strong></div><div><span>Authentication</span><strong>Supabase Auth</strong></div><div><span>Storage</span><strong>Supabase Storage</strong></div><div><span>Reminders</span><strong>Not enabled</strong></div><div><span>Version</span><strong>{APP_VERSION}</strong></div><div><span>Trademark</span><strong>{APP_TRADEMARK}</strong></div><div><span>Copyright</span><strong>{APP_COPYRIGHT}</strong></div></div>
+          <div className="detail-list">
+            <div><span><Coins size={14}/> Currency</span><strong>MYR</strong></div>
+            <div><span><Lock size={14}/> Authentication</span><strong>Supabase Auth</strong></div>
+            <div><span><Database size={14}/> Storage</span><strong>Supabase Storage</strong></div>
+            <div><span><Bell size={14}/> Reminders</span><strong>Not enabled</strong></div>
+            <div><span><BadgeCheck size={14}/> Version</span><strong>{APP_VERSION}</strong></div>
+            <div><span><Tag size={14}/> Trademark</span><strong>{APP_TRADEMARK}</strong></div>
+            <div><span><Tag size={14}/> Copyright</span><strong>{APP_COPYRIGHT}</strong></div>
+          </div>
         </section>
       </div>
 
