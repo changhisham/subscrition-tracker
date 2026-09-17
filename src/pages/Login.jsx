@@ -37,16 +37,30 @@ export default function Login() {
 
   return (
     <div className="login-page">
-      <div className="login-card">
-        <div className="login-brand"><div className="brand-mark large"><img src="/logo-mark.png" alt="SubTrack" /></div><div><strong>SubTrack</strong><span>Subscription Payment Tracker</span></div></div>
-        <div className="login-copy"><h1>Welcome back</h1><p>Sign in to manage your shared subscriptions and payments.</p></div>
-        <form onSubmit={submit} className="form-stack">
-          <label>Username<input value={username} onChange={e => setUsername(e.target.value)} placeholder="yourname" autoCapitalize="none" autoCorrect="off" autoComplete="username" required /></label>
-          <label>Password<input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••••" autoComplete="current-password" required /></label>
-          {error && <div className="alert error"><Lock size={16}/>{error}</div>}
-          <button className="btn primary full" disabled={busy}>{busy ? 'Signing in…' : 'Sign in'}</button>
-        </form>
-        <div className="login-note"><User size={15}/> Forgot your username? Check Settings → Profile once signed in, or ask whoever set up your account.</div>
+      <div className="login-shell">
+        <div className="login-form-panel">
+          <div className="login-brand"><div className="brand-mark large"><img src="/logo-mark.png" alt="SubTrack" /></div><div><strong>SubTrack</strong><span>Subscription Payment Tracker</span></div></div>
+          <div className="login-copy"><h1>Welcome back</h1><p>Sign in to manage your shared subscriptions and payments.</p></div>
+          <form onSubmit={submit} className="form-stack">
+            <label>Username<input value={username} onChange={e => setUsername(e.target.value)} placeholder="yourname" autoCapitalize="none" autoCorrect="off" autoComplete="username" required /></label>
+            <label>Password<input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••••" autoComplete="current-password" required /></label>
+            {error && <div className="alert error"><Lock size={16}/>{error}</div>}
+            <button className="btn primary full" disabled={busy}>{busy ? 'Signing in…' : 'Sign in'}</button>
+          </form>
+          <div className="login-note"><User size={15}/> Forgot your username? Check Settings → Profile once signed in, or ask whoever set up your account.</div>
+        </div>
+        <div className="login-illustration-panel">
+          <div className="login-sub-cards">
+            {previewSubs.map(s => (
+              <div className="login-sub-card" key={s.name}>
+                <span className="service-dot" style={{ background: s.dot }}></span>
+                <div className="row-main"><strong>{s.name}</strong><span>{s.note}</span></div>
+                <span className={`status status-${s.status.toLowerCase()}`}>{s.status === 'PAID' ? 'Paid' : 'Pending'}</span>
+              </div>
+            ))}
+          </div>
+          <div className="login-illustration-tagline">Keep every shared subscription in sync — split fairly, get paid on time.</div>
+        </div>
       </div>
       <div className="login-footer">v{APP_VERSION} · {APP_COPYRIGHT}</div>
     </div>
