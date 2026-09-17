@@ -9,6 +9,8 @@ import {
   updateMember,
 } from '../services/subscriptions'
 import { formatDate } from '../utils/dates'
+import { colorFor } from '../utils/color'
+import { SkeletonList } from '../components/ui/Skeleton'
 
 const blank = { nickname: '', notes: '' }
 const blankJoin = { subscriptionId: '', joinedDate: '', amount: '' }
@@ -16,6 +18,7 @@ const blankJoin = { subscriptionId: '', joinedDate: '', amount: '' }
 export default function Friends() {
   const [members, setMembers] = useState([])
   const [subscriptions, setSubscriptions] = useState([])
+  const [loading, setLoading] = useState(true)
   const [form, setForm] = useState(blank)
   const [editing, setEditing] = useState(null)
   const [busy, setBusy] = useState(false)
@@ -25,8 +28,10 @@ export default function Friends() {
   const [joinEditForm, setJoinEditForm] = useState({ joinedDate: '', amount: '' })
 
   async function load() {
+    setLoading(true)
     const [m, s] = await Promise.all([listMembersWithSubscriptions(), listSubscriptions()])
     setMembers(m); setSubscriptions(s)
+    setLoading(false)
   }
   useEffect(() => { load() }, [])
 
@@ -94,11 +99,13 @@ export default function Friends() {
         </section>
         <section className="panel">
           <div className="panel-header"><h3>Friend list</h3><span className="count">{members.length}</span></div>
-          <div className="payment-list">
-            {members.map(m => (
+          {loading ? <SkeletonList rows={3} /> : <div className="payment-list">
+            {members.map(m => {
+              const tint = colorFor(m.nickname)
+              return (
               <div className="member-card" key={m.id}>
                 <div className="payment-row no-border">
-                  <div className="avatar soft"><UserRound size={17}/></div>
+                  <div className="avatar soft" style={{ background: tint.bg, color: tint.fg }}><UserRound size={17}/></div>
                   <div className="row-main"><strong>{m.nickname}</strong><span>Joined app {formatDate(m.created_at)}</span></div>
                   <button className="icon-btn" onClick={() => edit(m)}><Pencil size={16}/></button>
                 </div>
@@ -142,9 +149,10 @@ export default function Friends() {
                   </form>
                 </div>
               </div>
-            ))}
+              )
+            })}
             {!members.length && <div className="empty">No friends yet.</div>}
-          </div>
+          </div>}
         </section>
       </div>
     </>

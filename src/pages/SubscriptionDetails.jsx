@@ -3,8 +3,10 @@ import { Link, useParams } from 'react-router-dom'
 import { AlertTriangle, ArrowLeft, CalendarPlus, Check, Save, Trash2, UserPlus } from 'lucide-react'
 import { getSubscription, listMembers, removeSubscriptionMember, saveSubscriptionMember, updateSubscription } from '../services/subscriptions'
 import { generateBillingPeriod } from '../services/billing'
+import { SkeletonList } from '../components/ui/Skeleton'
 import { money } from '../utils/currency'
 import { formatDate, monthInputValue, todayIso } from '../utils/dates'
+import { colorFor } from '../utils/color'
 
 export default function SubscriptionDetails() {
   const { id } = useParams()
@@ -80,7 +82,12 @@ export default function SubscriptionDetails() {
     setSubBusy(false)
   }
 
-  if (!subscription || !subForm) return <div className="empty">Loading…</div>
+  if (!subscription || !subForm) return (
+    <>
+      <Link to="/subscriptions" className="back-link"><ArrowLeft size={16}/> Back to subscriptions</Link>
+      <section className="panel"><SkeletonList rows={4} withAvatar={false} /></section>
+    </>
+  )
 
   return (
     <>
@@ -138,11 +145,14 @@ export default function SubscriptionDetails() {
       <section className="panel">
         <div className="panel-header"><div><h3>Members & pricing</h3><p>Amounts are individually configurable.</p></div></div>
         <div className="payment-list">
-          {subscription.subscription_members?.map(sm => <div className="payment-row" key={sm.id}>
-            <div className="avatar soft">{sm.member?.nickname?.slice(0,1).toUpperCase()}</div>
-            <div className="row-main"><strong>{sm.member?.nickname}</strong><span>Joined {formatDate(sm.joined_date)}</span></div>
-            <div className="row-end"><strong>{money(sm.monthly_amount)}</strong><button className="icon-btn danger-icon" onClick={()=>remove(sm.id)}><Trash2 size={15}/></button></div>
-          </div>)}
+          {subscription.subscription_members?.map(sm => {
+            const tint = colorFor(sm.member?.nickname)
+            return <div className="payment-row" key={sm.id}>
+              <div className="avatar soft" style={{ background: tint.bg, color: tint.fg }}>{sm.member?.nickname?.slice(0,1).toUpperCase()}</div>
+              <div className="row-main"><strong>{sm.member?.nickname}</strong><span>Joined {formatDate(sm.joined_date)}</span></div>
+              <div className="row-end"><strong>{money(sm.monthly_amount)}</strong><button className="icon-btn danger-icon" onClick={()=>remove(sm.id)}><Trash2 size={15}/></button></div>
+            </div>
+          })}
           {!subscription.subscription_members?.length && <div className="empty">No members added.</div>}
         </div>
         <form className="inline-form" onSubmit={addMember}>

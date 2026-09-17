@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useState } from 'react'
 import { CheckCircle2, Scale } from 'lucide-react'
 import { listPayments, updatePayment } from '../services/payments'
+import { SkeletonList } from '../components/ui/Skeleton'
 import { money } from '../utils/currency'
 import { todayIso } from '../utils/dates'
+import { colorFor } from '../utils/color'
 
 export default function Balances() {
   const [payments, setPayments] = useState([])
@@ -56,18 +58,21 @@ export default function Balances() {
 
       <section className="panel">
         <div className="panel-header"><div><h3><Scale size={17}/> Balances</h3><p>Sorted by who owes the most.</p></div><span className="count">{balances.length}</span></div>
-        {loading ? <div className="empty">Loading…</div> : (
+        {loading ? <SkeletonList rows={4} /> : (
           <div className="payment-list">
-            {balances.map(b => (
+            {balances.map(b => {
+              const tint = colorFor(b.member?.nickname)
+              return (
               <div className="payment-row" key={b.member?.id || b.member?.nickname}>
-                <div className="avatar soft">{b.member?.nickname?.slice(0,1).toUpperCase() || '?'}</div>
+                <div className="avatar soft" style={{ background: tint.bg, color: tint.fg }}>{b.member?.nickname?.slice(0,1).toUpperCase() || '?'}</div>
                 <div className="row-main"><strong>{b.member?.nickname}</strong><span>{money(b.paid)} paid of {money(b.due)} billed{b.overdue ? ` · ${b.overdue} overdue` : ''}</span></div>
                 <div className="row-end">
                   <strong className={b.outstanding > 0 ? 'owing-text' : ''}>{b.outstanding > 0 ? `${money(b.outstanding)} owing` : 'Settled up'}</strong>
                   {b.outstanding > 0 && <button className="btn small success-btn" disabled={busy===b.member?.id} onClick={()=>settleAll(b)}><CheckCircle2 size={14}/>Settle all</button>}
                 </div>
               </div>
-            ))}
+              )
+            })}
             {!balances.length && <div className="empty">No payment records yet.</div>}
           </div>
         )}

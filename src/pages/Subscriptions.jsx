@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { ChevronRight, CreditCard, Plus } from 'lucide-react'
 import { createSubscription, listSubscriptions } from '../services/subscriptions'
 import { money } from '../utils/currency'
+import { colorFor } from '../utils/color'
 
 const blank = { name: '', provider: '', price: '', billing_day: 1, billing_frequency: 'MONTHLY', status: 'ACTIVE', notes: '' }
 const statusTabs = ['Active', 'Cancelled', 'All']
@@ -41,12 +42,15 @@ export default function Subscriptions() {
           <div className="panel-header"><h3>Your subscriptions</h3><span className="count">{visible.length}</span></div>
           <div className="report-tabs sub-status-tabs">{statusTabs.map(t => <button key={t} className={statusFilter===t?'active':''} onClick={()=>setStatusFilter(t)}>{t}</button>)}</div>
           <div className="card-list">
-            {visible.map(s => <Link className="subscription-card" to={`/subscriptions/${s.id}`} key={s.id}>
-              <div className="service-icon"><CreditCard size={19}/></div>
-              <div className="row-main"><strong>{s.name}</strong><span>{s.provider || 'No provider'} · {s.subscription_members?.length || 0} members</span></div>
-              <div className="row-end"><strong>{money(s.price)}</strong><span className={`dot ${s.status === 'ACTIVE' ? 'green' : ''}`}>{s.status}</span></div>
-              <ChevronRight size={18}/>
-            </Link>)}
+            {visible.map(s => {
+              const tint = colorFor(s.name)
+              return <Link className="subscription-card" to={`/subscriptions/${s.id}`} key={s.id}>
+                <div className="service-icon" style={{ background: tint.bg, color: tint.fg }}><CreditCard size={19}/></div>
+                <div className="row-main"><strong>{s.name}</strong><span>{s.provider || 'No provider'} · {s.subscription_members?.length || 0} members</span></div>
+                <div className="row-end"><strong>{money(s.price)}</strong><span className={`dot ${s.status === 'ACTIVE' ? 'green' : ''}`}>{s.status}</span></div>
+                <ChevronRight size={18}/>
+              </Link>
+            })}
             {!visible.length && <div className="empty">{statusFilter === 'Active' ? 'No active subscriptions.' : 'Nothing here.'}</div>}
           </div>
         </section>

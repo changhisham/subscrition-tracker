@@ -1,11 +1,16 @@
 import { useEffect, useMemo, useState } from 'react'
 import { AlertCircle, Check, CheckCircle2, CreditCard, WalletCards, X } from 'lucide-react'
+import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from 'recharts'
 import StatCard from '../components/ui/StatCard'
 import StatusBadge from '../components/ui/StatusBadge'
+import { Skeleton, SkeletonList } from '../components/ui/Skeleton'
 import { listPayments } from '../services/payments'
 import { listSubscriptions } from '../services/subscriptions'
 import { money } from '../utils/currency'
 import { monthInputValue, formatMonth } from '../utils/dates'
+import { colorFor } from '../utils/color'
+
+const statusColors = { OVERDUE: '#d92d20', PENDING: '#dc6803', PAID: '#039855', WAIVED: '#98a2b3' }
 
 const scopes = ['Monthly', 'Yearly']
 const statusOrder = ['OVERDUE', 'PENDING', 'PAID', 'WAIVED']
@@ -166,7 +171,7 @@ export default function Dashboard() {
 
       {scope === 'Yearly' ? (
         loading ? (
-          <section className="panel"><div className="empty">Loading…</div></section>
+          <section className="panel"><Skeleton className="skeleton-block" /></section>
         ) : !yearlyGrids.length ? (
           <section className="panel"><div className="empty">No payment records for {year}.</div></section>
         ) : (
@@ -215,12 +220,13 @@ export default function Dashboard() {
           <div className="content-grid two">
             <section className="panel">
               <div className="panel-header"><div><h3>Subscriptions</h3><p>{active.length} active service{active.length === 1 ? '' : 's'}.</p></div></div>
-              {active.length === 0 ? <div className="empty">No subscriptions yet.</div> : (
+              {loading ? <SkeletonList rows={3} withAvatar={false} /> : active.length === 0 ? <div className="empty">No subscriptions yet.</div> : (
                 <div className="payment-list">
                   {active.map(s => {
                     const charges = (s.subscription_members || []).reduce((a, x) => a + Number(x.monthly_amount || 0), 0)
+                    const tint = colorFor(s.name)
                     return <div className="payment-row" key={s.id}>
-                      <div className="service-icon"><CreditCard size={18}/></div>
+                      <div className="service-icon" style={{ background: tint.bg, color: tint.fg }}><CreditCard size={18}/></div>
                       <div className="row-main"><strong>{s.name}</strong><span>{s.provider || '—'} · {s.billing_day || '—'}th monthly</span></div>
                       <div className="row-end"><strong>{money(s.price)}</strong><span className="muted">{money(charges)} allocated</span></div>
                     </div>
@@ -231,17 +237,18 @@ export default function Dashboard() {
 
             <section className="panel">
               <div className="panel-header"><div><h3>Friends</h3><p>Payment activity for this {periodWord}.</p></div></div>
-              {loading ? <div className="empty">Loading…</div> : !friendsSummary.length ? (
+              {loading ? <SkeletonList rows={4} /> : !friendsSummary.length ? (
                 <div className="empty">No payment records for this period.</div>
               ) : (
                 <div className="payment-list">
-                  {friendsSummary.map(f => (
-                    <div className="payment-row" key={f.member?.id || f.member?.nickname}>
-                      <div className="avatar soft">{f.member?.nickname?.slice(0,1).toUpperCase() || '?'}</div>
+                  {friendsSummary.map(f => {
+                    const tint = colorFor(f.member?.nickname)
+                    return <div className="payment-row" key={f.member?.id || f.member?.nickname}>
+                      <div className="avatar soft" style={{ background: tint.bg, color: tint.fg }}>{f.member?.nickname?.slice(0,1).toUpperCase() || '?'}</div>
                       <div className="row-main"><strong>{f.member?.nickname}</strong><span>{f.count} payment{f.count === 1 ? '' : 's'} · {f.overdue} overdue</span></div>
                       <div className="row-end"><strong>{money(f.paid)} / {money(f.due)}</strong><span className="muted">{f.outstanding > 0 ? `${money(f.outstanding)} owing` : 'Settled'}</span></div>
                     </div>
-                  ))}
+                  })}
                 </div>
               )}
             </section>
@@ -249,17 +256,34 @@ export default function Dashboard() {
 
           <section className="panel">
             <div className="panel-header"><div><h3>Payments status</h3><p>Breakdown by status for this {periodWord}.</p></div></div>
-            {loading ? <div className="empty">Loading…</div> : !payments.length ? (
+            {loading ? <SkeletonList rows={3} withAvatar={false} /> : !payments.length ? (
               <div className="empty">No payment records for this period.</div>
             ) : (
-              <div className="payment-list">
-                {statusSummary.filter(s => s.count > 0).map(s => (
-                  <div className="payment-row" key={s.status}>
-                    <StatusBadge status={s.status}/>
-                    <div className="row-main"><strong>{s.count} payment{s.count === 1 ? '' : 's'}</strong></div>
-                    <div className="row-end"><strong>{money(s.due)}</strong><span className="muted">{money(s.paid)} received</span></div>
+              <div className="content-grid two">
+                <div className="chart-panel">
+                  <ResponsiveContainer width="100%" height={200}>
+                    <PieChart>
+                      <Pie data={statusSummary.filter(s => s.count > 0)} dataKey="due" nameKey="status" innerRadius={52} outerRadius={80} paddingAngle={3}>
+                        {statusSummary.filter(s => s.count > 0).map(s => <Cell key={s.status} fill={statusColors[s.status]} />)}
+                      </Pie>
+                      <Tooltip formatter={(value) => money(value)} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                  <div className="chart-legend">
+                    {statusSummary.filter(s => s.count > 0).map(s => (
+                      <span className="chart-legend-item" key={s.status}><span className="chart-legend-dot" style={{ background: statusColors[s.status] }} />{s.status}</span>
+                    ))}
                   </div>
-                ))}
+                </div>
+                <div className="payment-list">
+                  {statusSummary.filter(s => s.count > 0).map(s => (
+                    <div className="payment-row" key={s.status}>
+                      <StatusBadge status={s.status}/>
+                      <div className="row-main"><strong>{s.count} payment{s.count === 1 ? '' : 's'}</strong></div>
+                      <div className="row-end"><strong>{money(s.due)}</strong><span className="muted">{money(s.paid)} received</span></div>
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
           </section>
