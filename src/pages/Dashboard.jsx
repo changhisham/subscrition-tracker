@@ -4,6 +4,7 @@ import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from 'recharts'
 import StatCard from '../components/ui/StatCard'
 import StatusBadge from '../components/ui/StatusBadge'
 import RadialMeter from '../components/ui/RadialMeter'
+import ServiceIcon from '../components/ui/ServiceIcon'
 import { Skeleton, SkeletonList } from '../components/ui/Skeleton'
 import { useAuth } from '../context/AuthContext'
 import { useToast } from '../context/ToastContext'
@@ -336,7 +337,7 @@ export default function Dashboard() {
             </div>
             {activeGrid && (
               <section className="panel">
-                <div className="panel-header"><div><h3>{activeGrid.subscription?.name || 'Unknown subscription'}</h3><p>{activeGrid.subscription?.provider || '—'}</p></div></div>
+                <div className="panel-header"><div className="heading-with-icon"><ServiceIcon name={activeGrid.subscription?.name} provider={activeGrid.subscription?.provider} size={30} iconSize={16} /><div><h3>{activeGrid.subscription?.name || 'Unknown subscription'}</h3><p>{activeGrid.subscription?.provider || '—'}</p></div></div></div>
                 <div className="table-wrap">
                   <table className="grid-table">
                     <thead>
@@ -376,9 +377,8 @@ export default function Dashboard() {
                 <div className="payment-list">
                   {active.map(s => {
                     const charges = (s.subscription_members || []).reduce((a, x) => a + Number(x.monthly_amount || 0), 0)
-                    const tint = colorFor(s.name)
                     return <div className="payment-row" key={s.id}>
-                      <div className="service-icon" style={{ background: tint.bg, color: tint.fg }}><CreditCard size={18}/></div>
+                      <ServiceIcon name={s.name} provider={s.provider} size={34} iconSize={18} />
                       <div className="row-main"><strong>{s.name}</strong><span>{s.provider || '—'} · {s.billing_day || '—'}th monthly</span></div>
                       <div className="row-end"><strong>{money(s.price)}</strong><span className="muted">{money(charges)} allocated</span></div>
                     </div>
@@ -412,6 +412,7 @@ export default function Dashboard() {
             </section>
           </div>
 
+              
           <section className="panel">
             <div className="panel-header"><div><h3>Payments status</h3><p>Breakdown by status for this {periodWord}.</p></div></div>
             {loading ? <SkeletonList rows={3} withAvatar={false} /> : !payments.length ? (

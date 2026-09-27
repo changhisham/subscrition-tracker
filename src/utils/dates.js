@@ -21,3 +21,14 @@ export function formatMonth(value) {
 export function todayIso() {
   return new Date().toISOString().slice(0, 10)
 }
+
+export function formatRelative(value) {
+  if (!value) return '—'
+  const d = new Date(value)
+  const now = new Date()
+  const sameDay = d.toDateString() === now.toDateString()
+  const yesterday = new Date(now); yesterday.setDate(now.getDate() - 1)
+  if (sameDay) return `Today, ${new Intl.DateTimeFormat('en-MY', { hour: 'numeric', minute: '2-digit' }).format(d)}`
+  if (d.toDateString() === yesterday.toDateString()) return 'Yesterday'
+  return formatDate(value)
+}

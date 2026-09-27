@@ -5,6 +5,7 @@ import { getSubscription, listMembers, removeSubscriptionMember, saveSubscriptio
 import { generateBillingPeriod } from '../services/billing'
 import { SkeletonList } from '../components/ui/Skeleton'
 import StatCard from '../components/ui/StatCard'
+import ServiceIcon from '../components/ui/ServiceIcon'
 import { useToast } from '../context/ToastContext'
 import { money } from '../utils/currency'
 import { formatDate, monthInputValue, todayIso } from '../utils/dates'
@@ -108,7 +109,10 @@ export default function SubscriptionDetails() {
     <>
       <Link to="/subscriptions" className="back-link"><ArrowLeft size={16}/> Back to subscriptions</Link>
       <div className="page-heading-row">
-        <div><h2>{subscription.name}</h2><p>{subscription.provider || 'No provider'} · Billing day {subscription.billing_day}</p></div>
+        <div className="heading-with-icon">
+          <ServiceIcon name={subscription.name} provider={subscription.provider} size={44} iconSize={24} />
+          <div><h2>{subscription.name}</h2><p>{subscription.provider || 'No provider'} · Billing day {subscription.billing_day}</p></div>
+        </div>
         <span className={`status ${subscription.status === 'ACTIVE' ? 'status-paid' : 'status-pending'}`}>{subscription.status}</span>
       </div>
 

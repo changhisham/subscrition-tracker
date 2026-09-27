@@ -3,6 +3,7 @@ import { AlertCircle, CheckCircle2, CreditCard, History, Pencil, Search, Upload,
 import { listPaymentLog, listPayments, updatePayment, uploadReceipt } from '../services/payments'
 import StatusBadge from '../components/ui/StatusBadge'
 import StatCard from '../components/ui/StatCard'
+import ServiceIcon from '../components/ui/ServiceIcon'
 import { useAuth } from '../context/AuthContext'
 import { useToast } from '../context/ToastContext'
 import { money } from '../utils/currency'
@@ -152,7 +153,7 @@ export default function Payments() {
       <tr key={p.id}>
         <td><input type="checkbox" checked={selected.has(p.id)} onChange={()=>toggleSelect(p.id)} /></td>
         <td><strong>{p.member?.nickname}</strong></td>
-        <td>{formatDate(p.due_date)}</td>
+        <td className="nowrap">{formatDate(p.due_date)}</td>
         <td>{money(p.amount_due)}</td>
         <td>{money(p.amount_paid)}</td>
         <td>
@@ -234,7 +235,7 @@ export default function Payments() {
           const allSelected = ids.length > 0 && ids.every(id => selected.has(id))
           return (
             <section className="panel" key={g.subscription?.id || g.subscription?.name}>
-              <div className="panel-header"><div><h3>{g.subscription?.name || 'Unknown subscription'}</h3><p>{g.subscription?.provider || '—'}</p></div><span className="count">{g.rows.length}</span></div>
+              <div className="panel-header"><div className="heading-with-icon"><ServiceIcon name={g.subscription?.name} provider={g.subscription?.provider} size={30} iconSize={16} /><div><h3>{g.subscription?.name || 'Unknown subscription'}</h3><p>{g.subscription?.provider || '—'}</p></div></div><span className="count">{g.rows.length}</span></div>
               <div className="table-wrap">
                 <table>
                   <thead><tr><th><input type="checkbox" checked={allSelected} onChange={()=>toggleGroup(ids)}/></th><th>Person</th><th>Due</th><th>Amount due</th><th>Paid</th><th>Status</th><th>Actions</th></tr></thead>

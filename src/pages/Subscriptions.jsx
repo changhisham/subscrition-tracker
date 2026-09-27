@@ -2,11 +2,11 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { ChevronRight, CreditCard, Layers, Plus, Users, Wallet, XCircle } from 'lucide-react'
 import StatCard from '../components/ui/StatCard'
+import ServiceIcon from '../components/ui/ServiceIcon'
 import { SkeletonList } from '../components/ui/Skeleton'
 import { createSubscription, listSubscriptions } from '../services/subscriptions'
 import { useToast } from '../context/ToastContext'
 import { money } from '../utils/currency'
-import { colorFor } from '../utils/color'
 
 const blank = { name: '', provider: '', price: '', billing_day: 1, billing_frequency: 'MONTHLY', status: 'ACTIVE', notes: '' }
 const statusTabs = ['Active', 'Cancelled', 'All']
@@ -71,10 +71,9 @@ export default function Subscriptions() {
           {loading ? <SkeletonList rows={3} withAvatar={false} /> : (
             <div className="card-list">
               {visible.map(s => {
-                const tint = colorFor(s.name)
                 const memberCount = s.subscription_members?.length || 0
                 return <Link className="subscription-card" to={`/subscriptions/${s.id}`} key={s.id}>
-                  <div className="service-icon" style={{ background: tint.bg, color: tint.fg }}><CreditCard size={19}/></div>
+                  <ServiceIcon name={s.name} provider={s.provider} size={34} iconSize={19} />
                   <div className="row-main"><strong>{s.name}</strong><span>{s.provider || 'No provider'} · {memberCount} member{memberCount === 1 ? '' : 's'}</span></div>
                   <div className="row-end"><strong>{money(s.price)}</strong><span className={`status ${s.status === 'ACTIVE' ? 'status-paid' : 'status-waived'}`}>{s.status}</span></div>
                   <ChevronRight size={18}/>
