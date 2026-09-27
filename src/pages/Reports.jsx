@@ -7,6 +7,7 @@ import StatCard from '../components/ui/StatCard'
 import { Skeleton } from '../components/ui/Skeleton'
 import { money } from '../utils/currency'
 import { monthInputValue } from '../utils/dates'
+import { getStored, setStored } from '../utils/storage'
 
 const scopes = ['Monthly', 'Yearly']
 const tabs = ['Monthly Summary', 'Payment History', 'Outstanding', 'Overdue']
@@ -14,13 +15,18 @@ const currentYear = new Date().getFullYear()
 const years = Array.from({ length: 8 }, (_, i) => currentYear - 5 + i)
 
 export default function Reports() {
-  const [scope, setScope] = useState('Monthly')
+  const [scope, setScope] = useState(() => getStored('subtrack:reportsScope', 'Monthly'))
   const [month, setMonth] = useState(monthInputValue())
   const [year, setYear] = useState(currentYear)
   const [tab, setTab] = useState(tabs[0])
   const [rows, setRows] = useState([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
+
+  function changeScope(next) {
+    setScope(next)
+    setStored('subtrack:reportsScope', next)
+  }
 
   async function load() {
     setLoading(true)
@@ -77,7 +83,7 @@ export default function Reports() {
         <StatCard label="Collection rate" value={`${Math.round(collectPct)}%`} icon={PieChartIcon} tone={collectPct >= 90 ? 'success' : collectPct >= 50 ? 'warning' : 'danger'} />
       </div>
 
-      <div className="report-tabs">{scopes.map(s => <button key={s} className={scope===s?'active':''} onClick={()=>setScope(s)}>{s}</button>)}</div>
+      <div className="report-tabs">{scopes.map(s => <button key={s} className={scope===s?'active':''} onClick={()=>changeScope(s)}>{s}</button>)}</div>
       <div className="report-tabs">{tabs.map(t=><button key={t} className={tab===t?'active':''} onClick={()=>setTab(t)}>{t}</button>)}</div>
       <div className="search-row"><Search size={15}/><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search by friend or subscription…"/></div>
 

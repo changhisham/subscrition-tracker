@@ -13,6 +13,7 @@ import { listSubscriptions } from '../services/subscriptions'
 import { money } from '../utils/currency'
 import { monthInputValue, formatMonth, formatDate, todayIso } from '../utils/dates'
 import { colorFor } from '../utils/color'
+import { getStored, setStored } from '../utils/storage'
 
 function greetingFor(hour) {
   if (hour < 5) return 'Working late'
@@ -68,13 +69,18 @@ function GridCell({ status }) {
 export default function Dashboard() {
   const { user, profile } = useAuth()
   const toast = useToast()
-  const [scope, setScope] = useState('Monthly')
+  const [scope, setScope] = useState(() => getStored('subtrack:dashboardScope', 'Monthly'))
   const [month, setMonth] = useState(monthInputValue())
   const [year, setYear] = useState(currentYear)
   const [allPayments, setAllPayments] = useState([])
   const [subscriptions, setSubscriptions] = useState([])
   const [loading, setLoading] = useState(true)
   const [busyId, setBusyId] = useState('')
+
+  function changeScope(next) {
+    setScope(next)
+    setStored('subtrack:dashboardScope', next)
+  }
 
   const trailPeriods = useMemo(
     () => Array.from({ length: TREND_PERIODS }, (_, i) => periodBounds(scope, month, year, i - (TREND_PERIODS - 1))),
@@ -229,6 +235,132 @@ export default function Dashboard() {
   const name = profile?.display_name || user?.email?.split('@')[0] || 'there'
   const initial = name.slice(0, 1).toUpperCase()
 
+  const yearlySection = loading ? (
+    <section className="panel"><Skeleton className="skeleton-block" /></section>
+  ) : !yearlyGrids.length ? (
+    <section className="panel"><div className="empty">No payment records for {year}.</div></section>
+  ) : (
+    <>
+      <div className="report-tabs sub-tabs">
+        {yearlyGrids.map(g => {
+          const key = g.subscription?.id ?? g.subscription?.name
+          return <button key={key} className={subTab === key ? 'active' : ''} onClick={() => setSubTab(key)}>{g.subscription?.name || 'Unknown'}</button>
+        })}
+      </div>
+      {activeGrid && (
+        <section className="panel">
+          <div className="panel-header"><div className="heading-with-icon"><ServiceIcon name={activeGrid.subscription?.name} provider={activeGrid.subscription?.provider} size={30} iconSize={16} /><div><h3>{activeGrid.subscription?.name || 'Unknown subscription'}</h3><p>{activeGrid.subscription?.provider || '—'}</p></div></div></div>
+          <div className="table-wrap">
+            <table className="grid-table">
+              <thead>
+                <tr><th></th>{monthLetters.map((l, i) => <th key={i}>{l}</th>)}<th>Total</th></tr>
+              </thead>
+              <tbody>
+                <tr className="grid-all-row">
+                  <td>All</td>
+                  {activeGrid.allCells.map((s, i) => <GridCell key={i} status={s} />)}
+                  <td className="grid-total">{money(activeGrid.allTotal)}</td>
+                </tr>
+                {activeGrid.rows.map(r => (
+                  <tr key={r.member?.id || r.member?.nickname}>
+                    <td>{r.member?.nickname}</td>
+                    {r.cells.map((s, i) => <GridCell key={i} status={s} />)}
+                    <td className="grid-total">{money(r.total)}</td>
+                  </tr>
+                ))}
+                <tr className="grid-collected-row">
+                  <td>Collected</td>
+                  {activeGrid.monthTotals.map((mt, i) => <td key={i}>{mt.total ? `${mt.paid}/${mt.total}` : '–'}</td>)}
+                  <td></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+      )}
+    </>
+  )
+
+  const monthlySection = (
+    <>
+      <div className="content-grid two">
+        <section className="panel">
+          <div className="panel-header"><div><h3>Subscriptions</h3><p>{active.length} active service{active.length === 1 ? '' : 's'}.</p></div></div>
+          {loading ? <SkeletonList rows={3} withAvatar={false} /> : active.length === 0 ? <div className="empty">No subscriptions yet.</div> : (
+            <div className="payment-list">
+              {active.map(s => {
+                const charges = (s.subscription_members || []).reduce((a, x) => a + Number(x.monthly_amount || 0), 0)
+                return <div className="payment-row" key={s.id}>
+                  <ServiceIcon name={s.name} provider={s.provider} size={34} iconSize={18} />
+                  <div className="row-main"><strong>{s.name}</strong><span>{s.provider || '—'} · {s.billing_day || '—'}th monthly</span></div>
+                  <div className="row-end"><strong>{money(s.price)}</strong><span className="muted">{money(charges)} allocated</span></div>
+                </div>
+              })}
+            </div>
+          )}
+        </section>
+
+        <section className="panel">
+          <div className="panel-header"><div><h3>Friends</h3><p>Payment activity for this {periodWord}.</p></div></div>
+          {loading ? <SkeletonList rows={4} /> : !friendsSummary.length ? (
+            <div className="empty">No payment records for this period.</div>
+          ) : (
+            <div className="payment-list">
+              {friendsSummary.map(f => {
+                const tint = colorFor(f.member?.nickname)
+                const pct = f.due > 0 ? Math.min(100, (f.paid / f.due) * 100) : 100
+                const barColor = pct >= 100 ? '#039855' : pct >= 50 ? '#dc6803' : '#d92d20'
+                return <div className="payment-row leaderboard-row" key={f.member?.id || f.member?.nickname}>
+                  <div className="avatar soft" style={{ background: tint.bg, color: tint.fg }}>{f.member?.nickname?.slice(0,1).toUpperCase() || '?'}</div>
+                  <div className="row-main">
+                    <strong>{f.member?.nickname}</strong>
+                    <span>{f.count} payment{f.count === 1 ? '' : 's'} · {f.overdue} overdue</span>
+                    <div className="progress-track"><div className="progress-fill" style={{ width: `${pct}%`, background: barColor }} /></div>
+                  </div>
+                  <div className="row-end"><strong>{money(f.paid)} / {money(f.due)}</strong><span className="muted">{f.outstanding > 0 ? `${money(f.outstanding)} owing` : 'Settled'}</span></div>
+                </div>
+              })}
+            </div>
+          )}
+        </section>
+      </div>
+
+      <section className="panel">
+        <div className="panel-header"><div><h3>Payments status</h3><p>Breakdown by status for this {periodWord}.</p></div></div>
+        {loading ? <SkeletonList rows={3} withAvatar={false} /> : !payments.length ? (
+          <div className="empty">No payment records for this period.</div>
+        ) : (
+          <div className="content-grid two">
+            <div className="chart-panel">
+              <ResponsiveContainer width="100%" height={200}>
+                <PieChart>
+                  <Pie data={statusSummary.filter(s => s.count > 0)} dataKey="due" nameKey="status" innerRadius={52} outerRadius={80} paddingAngle={3}>
+                    {statusSummary.filter(s => s.count > 0).map(s => <Cell key={s.status} fill={statusColors[s.status]} />)}
+                  </Pie>
+                  <Tooltip formatter={(value) => money(value)} />
+                </PieChart>
+              </ResponsiveContainer>
+              <div className="chart-legend">
+                {statusSummary.filter(s => s.count > 0).map(s => (
+                  <span className="chart-legend-item" key={s.status}><span className="chart-legend-dot" style={{ background: statusColors[s.status] }} />{s.status}</span>
+                ))}
+              </div>
+            </div>
+            <div className="payment-list">
+              {statusSummary.filter(s => s.count > 0).map(s => (
+                <div className="payment-row" key={s.status}>
+                  <StatusBadge status={s.status}/>
+                  <div className="row-main"><strong>{s.count} payment{s.count === 1 ? '' : 's'}</strong></div>
+                  <div className="row-end"><strong>{money(s.due)}</strong><span className="muted">{money(s.paid)} received</span></div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </section>
+    </>
+  )
+
   return (
     <>
       <div className="welcome-banner">
@@ -257,8 +389,10 @@ export default function Dashboard() {
       </div>
 
       <div className="report-tabs">
-        {scopes.map(s => <button key={s} className={scope === s ? 'active' : ''} onClick={() => setScope(s)}>{s}</button>)}
+        {scopes.map(s => <button key={s} className={scope === s ? 'active' : ''} onClick={() => changeScope(s)}>{s}</button>)}
       </div>
+
+      {scope === 'Yearly' && yearlySection}
 
       <div className="content-grid two hero-row">
         <section className="panel hero-panel">
@@ -322,132 +456,7 @@ export default function Dashboard() {
           sparkline={sparklines.overdue} />
       </div>
 
-      {scope === 'Yearly' ? (
-        loading ? (
-          <section className="panel"><Skeleton className="skeleton-block" /></section>
-        ) : !yearlyGrids.length ? (
-          <section className="panel"><div className="empty">No payment records for {year}.</div></section>
-        ) : (
-          <>
-            <div className="report-tabs sub-tabs">
-              {yearlyGrids.map(g => {
-                const key = g.subscription?.id ?? g.subscription?.name
-                return <button key={key} className={subTab === key ? 'active' : ''} onClick={() => setSubTab(key)}>{g.subscription?.name || 'Unknown'}</button>
-              })}
-            </div>
-            {activeGrid && (
-              <section className="panel">
-                <div className="panel-header"><div className="heading-with-icon"><ServiceIcon name={activeGrid.subscription?.name} provider={activeGrid.subscription?.provider} size={30} iconSize={16} /><div><h3>{activeGrid.subscription?.name || 'Unknown subscription'}</h3><p>{activeGrid.subscription?.provider || '—'}</p></div></div></div>
-                <div className="table-wrap">
-                  <table className="grid-table">
-                    <thead>
-                      <tr><th></th>{monthLetters.map((l, i) => <th key={i}>{l}</th>)}<th>Total</th></tr>
-                    </thead>
-                    <tbody>
-                      <tr className="grid-all-row">
-                        <td>All</td>
-                        {activeGrid.allCells.map((s, i) => <GridCell key={i} status={s} />)}
-                        <td className="grid-total">{money(activeGrid.allTotal)}</td>
-                      </tr>
-                      {activeGrid.rows.map(r => (
-                        <tr key={r.member?.id || r.member?.nickname}>
-                          <td>{r.member?.nickname}</td>
-                          {r.cells.map((s, i) => <GridCell key={i} status={s} />)}
-                          <td className="grid-total">{money(r.total)}</td>
-                        </tr>
-                      ))}
-                      <tr className="grid-collected-row">
-                        <td>Collected</td>
-                        {activeGrid.monthTotals.map((mt, i) => <td key={i}>{mt.total ? `${mt.paid}/${mt.total}` : '–'}</td>)}
-                        <td></td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
-              </section>
-            )}
-          </>
-        )
-      ) : (
-        <>
-          <div className="content-grid two">
-            <section className="panel">
-              <div className="panel-header"><div><h3>Subscriptions</h3><p>{active.length} active service{active.length === 1 ? '' : 's'}.</p></div></div>
-              {loading ? <SkeletonList rows={3} withAvatar={false} /> : active.length === 0 ? <div className="empty">No subscriptions yet.</div> : (
-                <div className="payment-list">
-                  {active.map(s => {
-                    const charges = (s.subscription_members || []).reduce((a, x) => a + Number(x.monthly_amount || 0), 0)
-                    return <div className="payment-row" key={s.id}>
-                      <ServiceIcon name={s.name} provider={s.provider} size={34} iconSize={18} />
-                      <div className="row-main"><strong>{s.name}</strong><span>{s.provider || '—'} · {s.billing_day || '—'}th monthly</span></div>
-                      <div className="row-end"><strong>{money(s.price)}</strong><span className="muted">{money(charges)} allocated</span></div>
-                    </div>
-                  })}
-                </div>
-              )}
-            </section>
-
-            <section className="panel">
-              <div className="panel-header"><div><h3>Friends</h3><p>Payment activity for this {periodWord}.</p></div></div>
-              {loading ? <SkeletonList rows={4} /> : !friendsSummary.length ? (
-                <div className="empty">No payment records for this period.</div>
-              ) : (
-                <div className="payment-list">
-                  {friendsSummary.map(f => {
-                    const tint = colorFor(f.member?.nickname)
-                    const pct = f.due > 0 ? Math.min(100, (f.paid / f.due) * 100) : 100
-                    const barColor = pct >= 100 ? '#039855' : pct >= 50 ? '#dc6803' : '#d92d20'
-                    return <div className="payment-row leaderboard-row" key={f.member?.id || f.member?.nickname}>
-                      <div className="avatar soft" style={{ background: tint.bg, color: tint.fg }}>{f.member?.nickname?.slice(0,1).toUpperCase() || '?'}</div>
-                      <div className="row-main">
-                        <strong>{f.member?.nickname}</strong>
-                        <span>{f.count} payment{f.count === 1 ? '' : 's'} · {f.overdue} overdue</span>
-                        <div className="progress-track"><div className="progress-fill" style={{ width: `${pct}%`, background: barColor }} /></div>
-                      </div>
-                      <div className="row-end"><strong>{money(f.paid)} / {money(f.due)}</strong><span className="muted">{f.outstanding > 0 ? `${money(f.outstanding)} owing` : 'Settled'}</span></div>
-                    </div>
-                  })}
-                </div>
-              )}
-            </section>
-          </div>
-
-              
-          <section className="panel">
-            <div className="panel-header"><div><h3>Payments status</h3><p>Breakdown by status for this {periodWord}.</p></div></div>
-            {loading ? <SkeletonList rows={3} withAvatar={false} /> : !payments.length ? (
-              <div className="empty">No payment records for this period.</div>
-            ) : (
-              <div className="content-grid two">
-                <div className="chart-panel">
-                  <ResponsiveContainer width="100%" height={200}>
-                    <PieChart>
-                      <Pie data={statusSummary.filter(s => s.count > 0)} dataKey="due" nameKey="status" innerRadius={52} outerRadius={80} paddingAngle={3}>
-                        {statusSummary.filter(s => s.count > 0).map(s => <Cell key={s.status} fill={statusColors[s.status]} />)}
-                      </Pie>
-                      <Tooltip formatter={(value) => money(value)} />
-                    </PieChart>
-                  </ResponsiveContainer>
-                  <div className="chart-legend">
-                    {statusSummary.filter(s => s.count > 0).map(s => (
-                      <span className="chart-legend-item" key={s.status}><span className="chart-legend-dot" style={{ background: statusColors[s.status] }} />{s.status}</span>
-                    ))}
-                  </div>
-                </div>
-                <div className="payment-list">
-                  {statusSummary.filter(s => s.count > 0).map(s => (
-                    <div className="payment-row" key={s.status}>
-                      <StatusBadge status={s.status}/>
-                      <div className="row-main"><strong>{s.count} payment{s.count === 1 ? '' : 's'}</strong></div>
-                      <div className="row-end"><strong>{money(s.due)}</strong><span className="muted">{money(s.paid)} received</span></div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </section>
-        </>
-      )}
+      {scope === 'Monthly' && monthlySection}
     </>
   )
 }
